@@ -304,6 +304,54 @@ tbody tr.substituida td { color: var(--muted); }
 }
 .remover:hover { background: var(--danger-soft); color: var(--danger); border-color: #fecdca; }
 
+/* ---------- detalhes fiscais ---------- */
+
+.detalhes-btn {
+  width: 28px; height: 28px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: #fff; color: var(--blue);
+  font-size: 13px; line-height: 1; cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.detalhes-btn:hover { background: #eef4ff; border-color: var(--blue); }
+.detalhes-btn[aria-expanded="true"] { background: #eef4ff; border-color: var(--blue); }
+
+tbody tr.detalhes { background: #fbfdff; }
+tbody tr.detalhes:hover { background: #fbfdff; }
+tbody tr.detalhes > td {
+  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: normal;
+}
+
+.detalhes-conteudo {
+  padding: 12px 14px;
+  border: 1px solid #dbe7f5; border-radius: 10px;
+  background: #fff;
+}
+.detalhes-titulo {
+  margin: 0 0 10px;
+  font-size: .66rem; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--navy);
+}
+.detalhes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+}
+.detalhe { display: grid; gap: 2px; min-width: 0; }
+.detalhe dt {
+  font-size: .6rem; font-weight: 700; letter-spacing: .03em;
+  text-transform: uppercase; color: var(--muted);
+}
+.detalhe dd {
+  margin: 0;
+  font-size: .74rem; font-weight: 600; color: var(--navy);
+  overflow-wrap: anywhere;
+}
+
 tfoot td {
   background: #f7fafd; font-weight: 800;
   border-top: 2px solid var(--line); border-bottom: 0;
@@ -459,7 +507,13 @@ tfoot td.rotulo { text-align: right; color: var(--muted); font-weight: 700; }
 
   .nome { max-width: none; white-space: normal; overflow: visible; }
   .mini { font-size: 5.8pt; }
-  .remover { display: none; }
+  .remover, .detalhes-btn { display: none; }
   #tabela th:last-child, #tabela td:last-child { width: 1px; padding: 0; }
+  tr.detalhes > td { padding: 2px 3px 6px; }
+  .detalhes-conteudo { padding: 6px 8px; border: 1px solid #c9d5e3; border-radius: 4px; }
+  .detalhes-titulo { font-size: 5.8pt; margin-bottom: 4px; }
+  .detalhes-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 10px; }
+  .detalhe dt { font-size: 5.2pt; }
+  .detalhe dd { font-size: 6.4pt; }
   .tag { border: 1px solid currentColor; }
 }

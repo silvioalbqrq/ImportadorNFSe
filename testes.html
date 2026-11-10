@@ -21,7 +21,7 @@
   <div id="saida"></div>
 
   <script src="municipios.js"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
   <script>
     (async function () {
       'use strict';
@@ -334,6 +334,79 @@
       if (chaveNacional !== chaveNacionalB) problemasChaveNacional.push('mesma nota gerou chaves diferentes');
       if (problemasChaveNacional.length) falhas++;
       mostrarResultado('Layout nacional — chave pelo Id', problemasChaveNacional);
+
+      // Tags fiscais do leiaute nacional (NT 009 / DPS em produção).
+      var nacionalFiscal = '<?xml version="1.0" encoding="utf-8"?>' +
+        '<NFSe versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">' +
+        '<infNFSe Id="NFS23044002203602402000154000000000000926110000000001">' +
+        '<nNFSe>9</nNFSe><cStat>100</cStat><dhProc>2026-11-07T12:36:30-03:00</dhProc>' +
+        '<emit><CNPJ>03602402000154</CNPJ><xNome>PRESTADOR TESTE</xNome>' +
+        '<enderNac><cMun>2304400</cMun><UF>CE</UF></enderNac></emit>' +
+        '<valores><vBC>400.00</vBC><pAliqAplic>2.18</pAliqAplic><vISSQN>8.72</vISSQN>' +
+        '<vTotalRet>8.72</vTotalRet><vLiq>391.28</vLiq></valores>' +
+        '<DPS versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse"><infDPS>' +
+        '<dhEmi>2026-11-07T12:36:30-03:00</dhEmi>' +
+        '<prest><CNPJ>03602402000154</CNPJ><regTrib>' +
+        '<opSimpNac>3</opSimpNac><regApTribSN>1</regApTribSN><regEspTrib>0</regEspTrib>' +
+        '</regTrib></prest>' +
+        '<toma><CNPJ>03837881000198</CNPJ><xNome>TOMADOR TESTE</xNome></toma>' +
+        '<serv><locPrest><cLocPrestacao>2304400</cLocPrestacao></locPrest>' +
+        '<cServ><cTribNac>071301</cTribNac><cTribMun>003</cTribMun>' +
+        '<xDescServ>DEDETIZACAO</xDescServ></cServ></serv>' +
+        '<valores><vServPrest><vServ>400.00</vServ></vServPrest>' +
+        '<trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>2</tpRetISSQN><pAliq>2.18</pAliq></tribMun>' +
+        '<tribFed><piscofins><CST>01</CST><tpRetPisCofins>2</tpRetPisCofins>' +
+        '<pAliqPis>0.65</pAliqPis><pAliqCofins>3.00</pAliqCofins>' +
+        '<vBCPisCofins>400.00</vBCPisCofins><vPis>2.60</vPis><vCofins>12.00</vCofins>' +
+        '</piscofins></tribFed>' +
+        '<totTrib><indTotTrib>0</indTotTrib><pTotTribSN>9.00</pTotTribSN>' +
+        '<vTotTrib>45.00</vTotTrib></totTrib></trib>' +
+        '<vDedRed><documentos><docDedRed><NFNFS>' +
+        '<modNFS>000000000000055</modNFS>' +
+        '</NFNFS></docDedRed></documentos></vDedRed>' +
+        '</valores></infDPS></DPS></infNFSe></NFSe>';
+
+      var notaFiscal = NFSe.parseXml(nacionalFiscal, 'fiscal.xml');
+      var problemasFiscal = [];
+      total++;
+      if (notaFiscal.erro) {
+        problemasFiscal.push('erro de leitura: ' + notaFiscal.erro);
+      } else {
+        var esperadoFiscal = {
+          opSimpNac: '3', regApTribSN: '1', regEspTrib: '0',
+          pTotTribSN: 9, indTotTrib: '0', vTotTrib: 45,
+          cstPisCofins: '01', tpRetPisCofins: '2',
+          pAliqPis: 0.65, pAliqCofins: 3, vBCPisCofins: 400,
+          vPis: 2.6, vCofins: 12, pAliq: 2.18, pAliqAplic: 2.18,
+          modNFS: '000000000000055'
+        };
+        Object.keys(esperadoFiscal).forEach(function (campo) {
+          if (notaFiscal[campo] !== esperadoFiscal[campo]) {
+            problemasFiscal.push(campo + ': esperado ' + JSON.stringify(esperadoFiscal[campo]) + ', obtido ' + JSON.stringify(notaFiscal[campo]));
+          }
+        });
+      }
+      if (problemasFiscal.length) falhas++;
+      mostrarResultado('Layout nacional — tags fiscais', problemasFiscal);
+
+      // Nota nacional sem os grupos fiscais não deve inventar valores.
+      var nacionalSemFiscal = nacionalRetido
+        .replace('<tribFed><piscofins><CST>00</CST></piscofins></tribFed>', '');
+      var notaSemFiscal = NFSe.parseXml(nacionalSemFiscal, 'sem-fiscal.xml');
+      var problemasSemFiscal = [];
+      total++;
+      if (notaSemFiscal.erro) {
+        problemasSemFiscal.push('erro de leitura: ' + notaSemFiscal.erro);
+      } else {
+        if (notaSemFiscal.opSimpNac !== '') problemasSemFiscal.push('opSimpNac: ' + notaSemFiscal.opSimpNac);
+        if (notaSemFiscal.pTotTribSN !== null) problemasSemFiscal.push('pTotTribSN: ' + notaSemFiscal.pTotTribSN);
+        if (notaSemFiscal.vTotTrib !== null) problemasSemFiscal.push('vTotTrib: ' + notaSemFiscal.vTotTrib);
+        if (notaSemFiscal.cstPisCofins !== '') problemasSemFiscal.push('cstPisCofins: ' + notaSemFiscal.cstPisCofins);
+        if (notaSemFiscal.pAliqPis !== null) problemasSemFiscal.push('pAliqPis: ' + notaSemFiscal.pAliqPis);
+        if (notaSemFiscal.modNFS !== '') problemasSemFiscal.push('modNFS: ' + notaSemFiscal.modNFS);
+      }
+      if (problemasSemFiscal.length) falhas++;
+      mostrarResultado('Layout nacional — sem tags fiscais', problemasSemFiscal);
 
       // GINFES: NfseSubstituida aponta o número da nota substituída.
       // A nota antiga costuma vir com bloco de cancelamento no XML.

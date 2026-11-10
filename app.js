@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var state = { notas: [], ignorados: [], seq: 0, pagina: 1, porPagina: 15 };
+  var state = { notas: [], ignorados: [], seq: 0, pagina: 1, porPagina: 15, detalhes: {} };
   var RANK = { cancelada: 3, processada: 2, desconhecida: 1, processamento: 0 };
   var STATUS = {
     processada: { rotulo: 'Processada', classe: 'ok' },
@@ -17,6 +17,84 @@
   // encontradas nas demais notas da lista.
   function situacao(nota) {
     return nota.substituida ? 'substituida' : nota.status;
+  }
+
+  // Rótulos dos códigos do leiaute nacional usados nos detalhes fiscais.
+  var OP_SIMP_NAC = {
+    '1': '1 - Não Optante',
+    '2': '2 - MEI',
+    '3': '3 - ME/EPP',
+    '4': '4 - Optante Pendente'
+  };
+  var REG_AP_TRIB_SN = {
+    '1': '1 - Federais e municipal pelo SN',
+    '2': '2 - Federais pelo SN; ISSQN pela legislação municipal',
+    '3': '3 - Federais e municipal pelas legislações de cada tributo'
+  };
+  var REG_ESP_TRIB = {
+    '0': '0 - Nenhum',
+    '1': '1 - Ato Cooperado',
+    '2': '2 - Estimativa',
+    '3': '3 - Microempresa Municipal',
+    '4': '4 - Notário ou Registrador',
+    '5': '5 - Profissional Autônomo',
+    '6': '6 - Sociedade de Profissionais',
+    '9': '9 - Outros'
+  };
+  var CST_PIS_COFINS = {
+    '00': '00 - Nenhum',
+    '01': '01 - Alíquota Básica',
+    '02': '02 - Alíquota Diferenciada',
+    '03': '03 - Alíquota por Unidade',
+    '04': '04 - Monofásica - Revenda a Alíquota Zero',
+    '05': '05 - Substituição Tributária',
+    '06': '06 - Alíquota Zero',
+    '07': '07 - Isenta',
+    '08': '08 - Sem Incidência',
+    '09': '09 - Suspensão',
+    '49': '49 - Outras Operações de Saída',
+    '50': '50 - Crédito - Receita Tributada Interna',
+    '51': '51 - Crédito - Receita Não Tributada Interna',
+    '52': '52 - Crédito - Receita de Exportação',
+    '53': '53 - Crédito - Tributada e Não Tributada Interna',
+    '54': '54 - Crédito - Tributada Interna e Exportação',
+    '55': '55 - Crédito - Não Tributada Interna e Exportação',
+    '56': '56 - Crédito - Tributada, Não Tributada e Exportação',
+    '60': '60 - Crédito Presumido - Receita Tributada Interna',
+    '61': '61 - Crédito Presumido - Receita Não Tributada Interna',
+    '62': '62 - Crédito Presumido - Receita de Exportação',
+    '63': '63 - Crédito Presumido - Tributada e Não Tributada Interna',
+    '64': '64 - Crédito Presumido - Tributada Interna e Exportação',
+    '65': '65 - Crédito Presumido - Não Tributada Interna e Exportação',
+    '66': '66 - Crédito Presumido - Tributada, Não Tributada e Exportação',
+    '67': '67 - Crédito Presumido - Outras Operações',
+    '70': '70 - Aquisição sem Direito a Crédito',
+    '71': '71 - Aquisição com Isenção',
+    '72': '72 - Aquisição com Suspensão',
+    '73': '73 - Aquisição a Alíquota Zero',
+    '74': '74 - Aquisição sem Incidência',
+    '75': '75 - Aquisição por Substituição Tributária',
+    '98': '98 - Outras Operações de Entrada',
+    '99': '99 - Outras Operações'
+  };
+  var TP_RET_PIS_COFINS = {
+    '0': '0 - PIS/COFINS/CSLL não retidos',
+    '1': '1 - PIS/COFINS retido',
+    '2': '2 - PIS/COFINS não retido',
+    '3': '3 - PIS/COFINS/CSLL retidos',
+    '4': '4 - PIS/COFINS retidos; CSLL não retido',
+    '5': '5 - PIS retido; COFINS/CSLL não retido',
+    '6': '6 - COFINS retido; PIS/CSLL não retido',
+    '7': '7 - PIS não retido; COFINS/CSLL retidos',
+    '8': '8 - PIS/COFINS não retidos; CSLL retido',
+    '9': '9 - COFINS não retido; PIS/CSLL retidos'
+  };
+  var IND_TOT_TRIB = { '0': '0 - Não', '1': '1 - Sim' };
+
+  function codigoRotulo(mapa, codigo) {
+    var c = String(codigo == null ? '' : codigo).trim();
+    if (!c) return '';
+    return mapa[c] || c;
   }
 
   // ---------- leitura do XML ----------
@@ -54,6 +132,10 @@
     if (t.indexOf(',') !== -1) t = t.replace(/\./g, '').replace(',', '.');
     var n = parseFloat(t);
     return isFinite(n) ? n : 0;
+  }
+
+  function numeroOuNulo(el) {
+    return texto(el) ? numero(el) : null;
   }
 
   function municipio(codigo, uf) {
@@ -166,6 +248,10 @@
     var valoresDps = filho(dps, 'valores');
     var valoresNfse = filho(inf, 'valores');
     var tribMun = caminho(valoresDps, 'trib', 'tribMun');
+    var regTrib = caminho(dps, 'prest', 'regTrib');
+    var totTrib = caminho(valoresDps, 'trib', 'totTrib');
+    var piscofins = caminho(valoresDps, 'trib', 'tribFed', 'piscofins');
+    var docDedRed = caminho(valoresDps, 'vDedRed', 'documentos', 'docDedRed');
 
     var numeroNota = texto(filho(inf, 'nNFSe'));
     var dataTexto = primeiro(filho(dps, 'dhEmi'), filho(inf, 'dhProc'));
@@ -227,6 +313,22 @@
       status: status,
       situacaoXml: cStat,
       substituiChave: texto(caminho(dps, 'subst', 'chSubstda')),
+      pAliq: numeroOuNulo(filho(tribMun, 'pAliq')),
+      pAliqAplic: numeroOuNulo(filho(valoresNfse, 'pAliqAplic')),
+      opSimpNac: texto(filho(regTrib, 'opSimpNac')),
+      regApTribSN: texto(filho(regTrib, 'regApTribSN')),
+      regEspTrib: texto(filho(regTrib, 'regEspTrib')),
+      pTotTribSN: numeroOuNulo(filho(totTrib, 'pTotTribSN')),
+      indTotTrib: texto(filho(totTrib, 'indTotTrib')),
+      vTotTrib: numeroOuNulo(filho(totTrib, 'vTotTrib')),
+      cstPisCofins: texto(filho(piscofins, 'CST')),
+      tpRetPisCofins: texto(filho(piscofins, 'tpRetPisCofins')),
+      pAliqPis: numeroOuNulo(filho(piscofins, 'pAliqPis')),
+      pAliqCofins: numeroOuNulo(filho(piscofins, 'pAliqCofins')),
+      vBCPisCofins: numeroOuNulo(filho(piscofins, 'vBCPisCofins')),
+      vPis: numeroOuNulo(filho(piscofins, 'vPis')),
+      vCofins: numeroOuNulo(filho(piscofins, 'vCofins')),
+      modNFS: texto(caminho(docDedRed, 'NFNFS', 'modNFS')) || texto(caminho(docDedRed, 'nfNFS', 'modNFS')),
       prestador: texto(filho(emit, 'xNome')),
       prestadorDoc: prestadorDoc
     };
@@ -493,6 +595,64 @@
     return td;
   }
 
+  function temDetalhes(nota) {
+    return !!(nota.opSimpNac || nota.regApTribSN || nota.regEspTrib ||
+      nota.pTotTribSN != null || nota.indTotTrib || nota.vTotTrib != null ||
+      nota.cstPisCofins || nota.tpRetPisCofins || nota.pAliqPis != null ||
+      nota.pAliqCofins != null || nota.vBCPisCofins != null || nota.vPis != null ||
+      nota.vCofins != null || nota.pAliq != null || nota.pAliqAplic != null || nota.modNFS);
+  }
+
+  function itemDetalhe(dl, rotulo, valor) {
+    var div = document.createElement('div');
+    div.className = 'detalhe';
+    var dt = document.createElement('dt');
+    dt.textContent = rotulo;
+    var dd = document.createElement('dd');
+    dd.textContent = valor == null || valor === '' ? '—' : valor;
+    div.appendChild(dt);
+    div.appendChild(dd);
+    dl.appendChild(div);
+  }
+
+  function linhaDetalhes(nota) {
+    var tr = document.createElement('tr');
+    tr.className = 'detalhes';
+    var td = document.createElement('td');
+    td.colSpan = 14;
+
+    var caixa = document.createElement('div');
+    caixa.className = 'detalhes-conteudo';
+    var titulo = document.createElement('p');
+    titulo.className = 'detalhes-titulo';
+    titulo.textContent = 'Detalhes fiscais' + (nota.numero ? ' · NFS-e ' + nota.numero : '');
+    caixa.appendChild(titulo);
+
+    var dl = document.createElement('dl');
+    dl.className = 'detalhes-grid';
+    itemDetalhe(dl, 'Regime (opSimpNac)', codigoRotulo(OP_SIMP_NAC, nota.opSimpNac));
+    itemDetalhe(dl, 'Apuração Simples (regApTribSN)', codigoRotulo(REG_AP_TRIB_SN, nota.regApTribSN));
+    itemDetalhe(dl, 'Regime especial (regEspTrib)', codigoRotulo(REG_ESP_TRIB, nota.regEspTrib));
+    itemDetalhe(dl, 'Tributos aprox. Simples (pTotTribSN)', nota.pTotTribSN == null ? '' : formatarAliquota(nota.pTotTribSN));
+    itemDetalhe(dl, 'Indicador total tributos (indTotTrib)', codigoRotulo(IND_TOT_TRIB, nota.indTotTrib));
+    itemDetalhe(dl, 'Valor total tributos (vTotTrib)', nota.vTotTrib == null ? '' : formatarMoeda(nota.vTotTrib));
+    itemDetalhe(dl, 'CST PIS/COFINS', codigoRotulo(CST_PIS_COFINS, nota.cstPisCofins));
+    itemDetalhe(dl, 'Retenção PIS/COFINS (tpRetPisCofins)', codigoRotulo(TP_RET_PIS_COFINS, nota.tpRetPisCofins));
+    itemDetalhe(dl, 'Alíquota PIS (pAliqPis)', nota.pAliqPis == null ? '' : formatarAliquota(nota.pAliqPis));
+    itemDetalhe(dl, 'Alíquota COFINS (pAliqCofins)', nota.pAliqCofins == null ? '' : formatarAliquota(nota.pAliqCofins));
+    itemDetalhe(dl, 'Base PIS/COFINS (vBCPisCofins)', nota.vBCPisCofins == null ? '' : formatarMoeda(nota.vBCPisCofins));
+    itemDetalhe(dl, 'Valor PIS (vPis)', nota.vPis == null ? '' : formatarMoeda(nota.vPis));
+    itemDetalhe(dl, 'Valor COFINS (vCofins)', nota.vCofins == null ? '' : formatarMoeda(nota.vCofins));
+    itemDetalhe(dl, 'Alíquota ISS (pAliq)', nota.pAliq == null ? '' : formatarAliquota(nota.pAliq));
+    itemDetalhe(dl, 'Alíquota aplicada (pAliqAplic)', nota.pAliqAplic == null ? '' : formatarAliquota(nota.pAliqAplic));
+    itemDetalhe(dl, 'Modelo NF/NFS (modNFS)', nota.modNFS);
+    caixa.appendChild(dl);
+
+    td.appendChild(caixa);
+    tr.appendChild(td);
+    return tr;
+  }
+
   function linha(nota) {
     var tr = document.createElement('tr');
     var sit = situacao(nota);
@@ -527,6 +687,21 @@
     tag.textContent = STATUS[sit].rotulo;
     tdStatus.appendChild(tag);
     tr.appendChild(tdStatus);
+
+    var tdDetalhes = document.createElement('td');
+    if (temDetalhes(nota)) {
+      var abrir = document.createElement('button');
+      abrir.type = 'button';
+      abrir.className = 'detalhes-btn';
+      abrir.dataset.id = nota.id;
+      abrir.title = 'Ver detalhes fiscais';
+      abrir.setAttribute('aria-expanded', state.detalhes[nota.id] ? 'true' : 'false');
+      abrir.textContent = state.detalhes[nota.id] ? '▾' : '▸';
+      tdDetalhes.appendChild(abrir);
+    } else {
+      tdDetalhes.textContent = '—';
+    }
+    tr.appendChild(tdDetalhes);
 
     var tdAcao = document.createElement('td');
     var botao = document.createElement('button');
@@ -630,7 +805,10 @@
       vazio.hidden = true;
     }
 
-    pagina.forEach(function (n) { corpo.appendChild(linha(n)); });
+    pagina.forEach(function (n) {
+      corpo.appendChild(linha(n));
+      if (state.detalhes[n.id]) corpo.appendChild(linhaDetalhes(n));
+    });
 
     if (notas.length) {
       var totalServico = somar(validas, 'valorServico');
@@ -649,7 +827,7 @@
       tr.appendChild(celula(formatarMoeda(totalIss), 'num'));
       tr.appendChild(celula(formatarMoeda(totalInss), 'num'));
       var vazioFinal = celula('');
-      vazioFinal.colSpan = 3;
+      vazioFinal.colSpan = 4;
       tr.appendChild(vazioFinal);
       rodape.appendChild(tr);
     }
@@ -702,6 +880,10 @@
     return valor.toFixed(2).replace('.', ',');
   }
 
+  function decimalOuVazio(valor) {
+    return valor == null ? '' : decimal(valor);
+  }
+
   function exportarCsv() {
     var notas = filtradas();
     if (!notas.length) {
@@ -713,6 +895,13 @@
       'Data de emissão', 'Nº NFS-e', 'Tomador do serviço', 'CNPJ / CPF', 'Atividade (CNAE)',
       'Item lista serviço', 'Valor do serviço', 'Valor total (líquido)', 'Alíquota (%)', 'ISS retido',
       'Valor ISS', 'INSS retido', 'Município favorecido', 'Código IBGE', 'UF', 'Situação',
+      'Regime (opSimpNac)', 'Apuração Simples (regApTribSN)', 'Regime especial (regEspTrib)',
+      'Tributos aprox. Simples (pTotTribSN)', 'Indicador total tributos (indTotTrib)',
+      'Valor total tributos (vTotTrib)', 'CST PIS/COFINS', 'Retenção PIS/COFINS (tpRetPisCofins)',
+      'Alíquota PIS (pAliqPis)', 'Alíquota COFINS (pAliqCofins)',
+      'Base PIS/COFINS (vBCPisCofins)', 'Valor PIS (vPis)',
+      'Valor COFINS (vCofins)', 'Alíquota ISS (pAliq)', 'Alíquota aplicada (pAliqAplic)',
+      'Modelo NF/NFS (modNFS)',
       'Prestador', 'CNPJ prestador', 'Arquivo'
     ]];
 
@@ -722,7 +911,16 @@
         n.atividade, n.item, decimal(n.valorServico), decimal(n.valorTotal),
         n.aliquota.toFixed(2).replace('.', ','), n.issRetido ? 'Sim' : 'Não',
         decimal(n.valorIss), decimal(n.inss), n.municipio, n.municipioCodigo, n.municipioUf,
-        STATUS[situacao(n)].rotulo, n.prestador, formatarDocumento(n.prestadorDoc), n.arquivo
+        STATUS[situacao(n)].rotulo,
+        codigoRotulo(OP_SIMP_NAC, n.opSimpNac), codigoRotulo(REG_AP_TRIB_SN, n.regApTribSN),
+        codigoRotulo(REG_ESP_TRIB, n.regEspTrib), decimalOuVazio(n.pTotTribSN),
+        codigoRotulo(IND_TOT_TRIB, n.indTotTrib), decimalOuVazio(n.vTotTrib),
+        codigoRotulo(CST_PIS_COFINS, n.cstPisCofins), codigoRotulo(TP_RET_PIS_COFINS, n.tpRetPisCofins),
+        decimalOuVazio(n.pAliqPis), decimalOuVazio(n.pAliqCofins),
+        decimalOuVazio(n.vBCPisCofins), decimalOuVazio(n.vPis),
+        decimalOuVazio(n.vCofins), decimalOuVazio(n.pAliq), decimalOuVazio(n.pAliqAplic),
+        n.modNFS || '',
+        n.prestador, formatarDocumento(n.prestadorDoc), n.arquivo
       ]);
     });
 
@@ -750,6 +948,7 @@
     if (!window.confirm('Remover todas as notas importadas?')) return;
     state.notas = [];
     state.ignorados = [];
+    state.detalhes = {};
     state.pagina = 1;
     document.getElementById('busca').value = '';
     document.getElementById('filtroStatus').value = '';
@@ -861,11 +1060,21 @@
     document.getElementById('btnLimpar').addEventListener('click', limpar);
 
     document.getElementById('corpo').addEventListener('click', function (e) {
+      var abrir = e.target.closest('.detalhes-btn');
+      if (abrir) {
+        var id = abrir.dataset.id;
+        if (state.detalhes[id]) delete state.detalhes[id];
+        else state.detalhes[id] = true;
+        render();
+        return;
+      }
+
       var botao = e.target.closest('.remover');
       if (!botao) return;
       var nota = state.notas.find(function (n) { return n.id === botao.dataset.id; });
       if (nota && !window.confirm('Remover a nota ' + (nota.numero || '') + ' (' + (nota.tomador || '') + ') da lista?')) return;
       state.notas = state.notas.filter(function (n) { return n.id !== botao.dataset.id; });
+      delete state.detalhes[botao.dataset.id];
       render();
     });
 

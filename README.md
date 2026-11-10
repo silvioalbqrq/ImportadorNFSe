@@ -35,6 +35,35 @@ Subpastas são lidas. Arquivos que não são NFS-e aparecem em “arquivos ignor
 
 No layout nacional (`sped.fazenda.gov.br/nfse`), os campos vêm de `NFSe/infNFSe` e da `DPS/infDPS`: número em `nNFSe`, data em `dhEmi`, tomador em `toma`, valores em `valores/vServPrest/vServ` e `valores/vLiq`, ISS em `valores/vISSQN` e retenção em `trib/tribMun/tpRetISSQN`. A situação usa `cStat`.
 
+## Detalhes fiscais (NFS-e nacional)
+
+As notas do layout nacional têm um botão **Detalhes** na listagem. Ele abre um painel com as tags fiscais lidas da DPS, sem criar novas colunas na tabela:
+
+| Campo | Origem no XML |
+| --- | --- |
+| Regime (`opSimpNac`) | `DPS/infDPS/prest/regTrib/opSimpNac` |
+| Apuração Simples (`regApTribSN`) | `DPS/infDPS/prest/regTrib/regApTribSN` |
+| Regime especial (`regEspTrib`) | `DPS/infDPS/prest/regTrib/regEspTrib` |
+| Tributos aproximados do Simples (`pTotTribSN`) | `DPS/infDPS/valores/trib/totTrib/pTotTribSN` |
+| Indicador total de tributos (`indTotTrib`) | `DPS/infDPS/valores/trib/totTrib/indTotTrib` |
+| Valor total de tributos (`vTotTrib`) | `DPS/infDPS/valores/trib/totTrib/vTotTrib` |
+| CST PIS/COFINS (`CST`) | `DPS/infDPS/valores/trib/tribFed/piscofins/CST` |
+| Retenção PIS/COFINS (`tpRetPisCofins`) | `DPS/infDPS/valores/trib/tribFed/piscofins/tpRetPisCofins` |
+| Alíquota PIS (`pAliqPis`) | `DPS/infDPS/valores/trib/tribFed/piscofins/pAliqPis` |
+| Alíquota COFINS (`pAliqCofins`) | `DPS/infDPS/valores/trib/tribFed/piscofins/pAliqCofins` |
+| Base PIS/COFINS (`vBCPisCofins`) | `DPS/infDPS/valores/trib/tribFed/piscofins/vBCPisCofins` |
+| Valor PIS (`vPis`) | `DPS/infDPS/valores/trib/tribFed/piscofins/vPis` |
+| Valor COFINS (`vCofins`) | `DPS/infDPS/valores/trib/tribFed/piscofins/vCofins` |
+| Alíquota ISS (`pAliq`) | `DPS/infDPS/valores/trib/tribMun/pAliq` |
+| Alíquota aplicada (`pAliqAplic`) | `NFSe/infNFSe/valores/pAliqAplic` |
+| Modelo NF/NFS (`modNFS`) | `DPS/infDPS/valores/vDedRed/documentos/docDedRed/NFNFS/modNFS` |
+
+Os códigos são exibidos com o rótulo oficial (por exemplo, `opSimpNac` `3` aparece como “3 - ME/EPP”). Campos ausentes aparecem como “—”. O painel só é mostrado quando a nota tem algum desses campos; notas GINFES não têm o botão.
+
+`modNFS` não é o modelo geral da nota: ele só existe dentro de documento de dedução/reembolso (`vDedRed`) e, por isso, aparece apenas quando esse grupo está no XML.
+
+As mesmas tags são incluídas no CSV exportado. Os campos de IBS/CBS (grupo `IBSCBS`, previsto para 01/12/2026) ainda não são lidos.
+
 ## Situação da nota
 
 - **Cancelada**: existe `Cancelamento/Confirmacao/InfConfirmacaoCancelamento` com `Sucesso=true`.
@@ -59,7 +88,7 @@ NF-e de produto e outros padrões de NFS-e não são lidos; os arquivos são lis
 
 ## Testes
 
-Abra `testes.html` no navegador. Ele roda casos dos três layouts, cancelamento, processamento, substituição, duplicidade, CSV e arquivo inválido, e mostra “Todos os casos passaram” quando está tudo certo.
+Abra `testes.html` no navegador. Ele roda 19 casos dos três layouts, cancelamento, processamento, substituição, duplicidade, CSV, tags fiscais nacionais e arquivo inválido, e mostra “Todos os casos passaram” quando está tudo certo.
 
 ## Publicar no GitHub
 
