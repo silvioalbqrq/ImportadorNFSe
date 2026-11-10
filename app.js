@@ -88,7 +88,8 @@
     else if (/processad/i.test(situacao)) status = 'processada';
 
     var numeroNota = primeiro(filho(info, 'Numero'), caminho(info, 'IdentificacaoNfse', 'Numero'));
-    var dataIso = (primeiro(filho(info, 'DataEmissao'), filho(nfse, 'DataEmissao')).match(/\d{4}-\d{2}-\d{2}/) || [''])[0];
+    var dataEl = primeiro(filho(info, 'DataEmissao'), filho(nfse, 'DataEmissao'));
+    var dataIso = texto(dataEl).match(/\d{4}-\d{2}-\d{2}/) ? texto(dataEl).match(/\d{4}-\d{2}-\d{2}/)[0] : '';
     var codigoMunicipio = primeiro(
       filho(servico, 'CodigoMunicipio'),
       filho(servico, 'MunicipioPrestacaoServico'),
@@ -665,23 +666,21 @@
       var total = filtradas().length;
       if (!total) return;
       // imprime todas as notas filtradas, não só a página aberta
-      if (total > state.porPagina) {
-        var anterior = state.porPagina;
-        state.porPagina = total;
+      var anterior = state.porPagina;
+      state.porPagina = total;
+      render();
+      try { window.print(); } finally {
+        state.porPagina = anterior;
         render();
-        window.addEventListener('afterprint', function restaurar() {
-          window.removeEventListener('afterprint', restaurar);
-          state.porPagina = anterior;
-          render();
-        });
       }
-      window.print();
     });
     document.getElementById('btnLimpar').addEventListener('click', limpar);
 
     document.getElementById('corpo').addEventListener('click', function (e) {
       var botao = e.target.closest('.remover');
       if (!botao) return;
+      var nota = state.notas.find(function (n) { return n.id === botao.dataset.id; });
+      if (nota && !window.confirm('Remover a nota ' + (nota.numero || '') + ' (' + (nota.tomador || '') + ') da lista?')) return;
       state.notas = state.notas.filter(function (n) { return n.id !== botao.dataset.id; });
       render();
     });
