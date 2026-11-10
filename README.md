@@ -33,6 +33,8 @@ Subpastas são lidas. Arquivos que não são NFS-e aparecem em “arquivos ignor
 | Município favorecido | `Servico/CodigoMunicipio` / `OrgaoGerador/CodigoMunicipio`, com nome e UF da tabela do IBGE |
 | Situação | `SituacaoAdn` e bloco `Cancelamento` |
 
+No layout nacional (`sped.fazenda.gov.br/nfse`), os campos vêm de `NFSe/infNFSe` e da `DPS/infDPS`: número em `nNFSe`, data em `dhEmi`, tomador em `toma`, valores em `valores/vServPrest/vServ` e `valores/vLiq`, ISS em `valores/vISSQN` e retenção em `trib/tribMun/tpRetISSQN`. A situação usa `cStat`.
+
 ## Situação da nota
 
 - **Cancelada**: existe `Cancelamento/Confirmacao/InfConfirmacaoCancelamento` com `Sucesso=true`.
@@ -44,18 +46,19 @@ Notas canceladas não entram nos totais. Os cards e o rodapé refletem os filtro
 
 ## Duplicidades
 
-O mesmo XML importado duas vezes (inclusive em pastas diferentes, como `01` e `01/originais`) é contado uma única vez pela `ChaveAcesso` — ou, no layout antigo, por prestador + número + data. Quando há versões diferentes da mesma nota, vale a de maior prioridade: cancelada > processada > não informada > em processamento.
+O mesmo XML importado duas vezes (inclusive em pastas diferentes, como `01` e `01/originais`) é contado uma única vez pela `ChaveAcesso` — ou, no layout antigo, por prestador + número + data. No layout nacional, vale o `Id` do `infNFSe`. Quando há versões diferentes da mesma nota, vale a de maior prioridade: cancelada > processada > não informada > em processamento.
 
 ## Layouts suportados
 
 - GINFES/Fortaleza com `NFSE > Nfse > InfNfse` (layout novo, com `SituacaoAdn`).
 - GINFES/Fortaleza com `NFSE > Nfse` e `IdentificacaoNfse` (layout antigo).
+- NFS-e nacional do Portal Contribuinte (`NFSe > infNFSe`, `sped.fazenda.gov.br/nfse`).
 
 NF-e de produto e outros padrões de NFS-e não são lidos; os arquivos são listados como ignorados.
 
 ## Testes
 
-Abra `testes.html` no navegador. Ele roda casos dos dois layouts, cancelamento, processamento e arquivo inválido, e mostra “Todos os casos passaram” quando está tudo certo.
+Abra `testes.html` no navegador. Ele roda casos dos três layouts, cancelamento, processamento, duplicidade, CSV e arquivo inválido, e mostra “Todos os casos passaram” quando está tudo certo.
 
 ## Publicar no GitHub
 

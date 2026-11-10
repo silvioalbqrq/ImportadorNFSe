@@ -64,7 +64,7 @@
     if (!doc || doc.getElementsByTagName('parsererror').length) return { erro: 'XML inválido' };
 
     var raiz = doc.documentElement;
-    if (!raiz || raiz.localName !== 'NFSE') return { erro: 'não é uma NFS-e (layout NFSE/GINFES)' };
+    if (!raiz || !/^nfse$/i.test(raiz.localName)) return { erro: 'não é uma NFS-e (layout NFSE/GINFES ou nacional)' };
     return { raiz: raiz };
   }
 
@@ -148,9 +148,91 @@
     };
   }
 
+  function parseNacional(inf, arquivo) {
+    var dps = caminho(inf, 'DPS', 'infDPS');
+    var emit = filho(inf, 'emit');
+    var toma = filho(dps, 'toma');
+    var serv = filho(dps, 'serv');
+    var cServ = filho(serv, 'cServ');
+    var valoresDps = filho(dps, 'valores');
+    var valoresNfse = filho(inf, 'valores');
+    var tribMun = caminho(valoresDps, 'trib', 'tribMun');
+
+    var numeroNota = texto(filho(inf, 'nNFSe'));
+    var dataTexto = primeiro(filho(dps, 'dhEmi'), filho(inf, 'dhProc'));
+    var dataIso = (dataTexto.match(/\d{4}-\d{2}-\d{2}/) || [''])[0];
+
+    var codigoMunicipio = primeiro(
+      filho(inf, 'cLocIncid'),
+      caminho(serv, 'locPrest', 'cLocPrestacao'),
+      caminho(emit, 'enderNac', 'cMun')
+    );
+    var uf = primeiro(
+      caminho(emit, 'enderNac', 'UF'),
+      caminho(toma, 'end', 'endNac', 'UF')
+    );
+    var municipioNota = municipio(codigoMunicipio, uf);
+
+    var valorServico = numero(caminho(valoresDps, 'vServPrest', 'vServ'));
+    var liquidoEl = filho(valoresNfse, 'vLiq');
+    var valorTotal = liquidoEl ? numero(liquidoEl) : valorServico;
+
+    // tpRetISSQN: 1 = não retido, 2 = retido pelo tomador, 3 = retido pelo intermediário.
+    var tpRetIss = texto(filho(tribMun, 'tpRetISSQN'));
+    var issRetido = tpRetIss === '2' || tpRetIss === '3';
+    var issEl = filho(valoresNfse, 'vISSQN');
+    var valorIss = issEl ? numero(issEl) : 0;
+    var valorIssRetido = issRetido && issEl ? numero(issEl) : null;
+    var aliquota = numero(filho(valoresNfse, 'pAliqAplic')) || numero(filho(tribMun, 'pAliq'));
+
+    var chave = (inf.getAttribute('Id') || '').trim();
+    var prestadorDoc = primeiro(filho(emit, 'CNPJ'), filho(emit, 'CPF'));
+
+    if (!numeroNota && !chave) return { erro: 'NFS-e sem número identificado' };
+
+    // cStat: 100 gerada, 101 substituição, 102 decisão judicial, 103 avulsa, 107 MEI.
+    var cStat = texto(filho(inf, 'cStat'));
+    var status = /^(100|101|102|103|107)$/.test(cStat) ? 'processada' : 'desconhecida';
+
+    return {
+      id: 'n' + (++state.seq),
+      chave: chave || [prestadorDoc, numeroNota, dataIso].join('|'),
+      arquivo: arquivo || '',
+      numero: numeroNota,
+      dataIso: dataIso,
+      tomador: texto(filho(toma, 'xNome')),
+      cpfCnpj: primeiro(filho(toma, 'CNPJ'), filho(toma, 'CPF')),
+      atividade: primeiro(filho(cServ, 'cTribNac'), filho(cServ, 'cTribMun')),
+      item: texto(filho(cServ, 'cTribMun')),
+      discriminacao: texto(filho(cServ, 'xDescServ')),
+      valorServico: valorServico,
+      valorTotal: valorTotal,
+      aliquota: aliquota,
+      issRetido: issRetido,
+      valorIss: valorIss,
+      valorIssRetido: valorIssRetido,
+      inss: numero(caminho(valoresDps, 'trib', 'tribFed', 'vInss')),
+      municipio: municipioNota.nome,
+      municipioUf: municipioNota.uf,
+      municipioCodigo: codigoMunicipio,
+      status: status,
+      situacaoXml: cStat,
+      prestador: texto(filho(emit, 'xNome')),
+      prestadorDoc: prestadorDoc
+    };
+  }
+
   function parseXmls(xml, arquivo) {
     var lido = lerDocumento(xml);
     if (lido.erro) return [lido];
+
+    // Layout nacional (sped.fazenda.gov.br/nfse): dados em infNFSe.
+    var nacionais = lido.raiz.getElementsByTagNameNS('*', 'infNFSe');
+    if (nacionais.length) {
+      return Array.prototype.map.call(nacionais, function (inf) {
+        return parseNacional(inf, arquivo);
+      });
+    }
 
     // XMLs assinados podem trazer um Nfse-envelope; só vale o que tem dados.
     var todos = lido.raiz.getElementsByTagNameNS('*', 'Nfse');
