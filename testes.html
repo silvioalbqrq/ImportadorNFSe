@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Testes do leitor de NFS-e</title>
+  <style>
+    body { font: 15px/1.5 "Segoe UI", Arial, sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; color: #1d2733; }
+    h1 { font-size: 20px; }
+    h2 { font-size: 16px; margin-top: 24px; }
+    li { margin: 4px 0; }
+    .ok { color: #1d7a4f; }
+    .falha { color: #a12828; font-weight: 700; }
+    #resumo { padding: 12px 14px; border-radius: 8px; background: #eef2f6; font-weight: 600; }
+    code { background: #f2f4f7; padding: 1px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Testes do leitor de NFS-e</h1>
+  <p>Autoteste do parser em <code>app.js</code>, com os layouts GINFES encontrados nos XMLs de exemplo. Não precisa de servidor.</p>
+  <div id="resumo">Executando...</div>
+  <div id="saida"></div>
+
+  <script src="municipios.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      var novaProcessada = '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<NFSE xmlns="http://www.ginfes.com.br/tipos_v03.xsd"><Nfse><InfNfse>' +
+        '<Numero>3635</Numero><DataEmissao>2026-10-14T12:04:26.077-03:00</DataEmissao>' +
+        '<ChaveAcesso>CHAVE-3635</ChaveAcesso><SituacaoAdn>Processado com Sucesso</SituacaoAdn>' +
+        '<Servico><Valores><ValorServicos>650</ValorServicos><ValorInss>71.5</ValorInss>' +
+        '<IssRetido>2</IssRetido><ValorIss>14.17</ValorIss><ValorIssRetido>0</ValorIssRetido>' +
+        '<Aliquota>2.18</Aliquota><ValorLiquidoNfse>578.5</ValorLiquidoNfse></Valores>' +
+        '<ItemListaServico>713</ItemListaServico><CodigoCnae>812220001</CodigoCnae>' +
+        '<CodigoMunicipio>2304400</CodigoMunicipio></Servico>' +
+        '<PrestadorServico><IdentificacaoPrestador><Cnpj>03602402000154</Cnpj></IdentificacaoPrestador>' +
+        '<RazaoSocial>MARIA RISONEIDE MENDES VELOSO</RazaoSocial></PrestadorServico>' +
+        '<TomadorServico><IdentificacaoTomador><CpfCnpj><Cnpj>07221472000466</Cnpj></CpfCnpj></IdentificacaoTomador>' +
+        '<RazaoSocial>JAGUAR COMERCIO DE TINTAS LTDA</RazaoSocial>' +
+        '<Endereco><CodigoMunicipio>2304400</CodigoMunicipio><Uf>CE</Uf></Endereco></TomadorServico>' +
+        '<OrgaoGerador><CodigoMunicipio>2304400</CodigoMunicipio><Uf>CE</Uf></OrgaoGerador>' +
+        '</InfNfse></Nfse></NFSE>';
+
+      var cancelada = novaProcessada.replace('CHAVE-3635', 'CHAVE-3633').replace('<Numero>3635</Numero>', '<Numero>3633</Numero>') +
+        '<Cancelamento><Confirmacao><InfConfirmacaoCancelamento><Sucesso>true</Sucesso>' +
+        '<DataHora>2026-10-14T11:51:19-03:00</DataHora></InfConfirmacaoCancelamento></Confirmacao></Cancelamento>';
+
+      // O bloco Cancelamento precisa ficar dentro do NFSE, por isso refazemos o fechamento.
+      cancelada = cancelada.replace('</NFSE><Cancelamento>', '<Cancelamento>').replace('</Cancelamento>', '</Cancelamento></NFSE>');
+
+      var emProcessamento = novaProcessada.replace('CHAVE-3635', 'CHAVE-3637')
+        .replace('<Numero>3635</Numero>', '<Numero>3637</Numero>')
+        .replace('Processado com Sucesso', 'Em Processamento');
+
+      var layoutAntigo = '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<NFSE xmlns="http://www.ginfes.com.br/tipos"><Nfse>' +
+        '<IdentificacaoNfse><Numero>42</Numero><CodigoVerificacao>557582668</CodigoVerificacao></IdentificacaoNfse>' +
+        '<DataEmissao>2024-07-25T14:21:16.729-03:00</DataEmissao>' +
+        '<Servico><Valores><ValorServicos>2604</ValorServicos><IssRetido>2</IssRetido><ValorIss>56.51</ValorIss>' +
+        '<BaseCalculo>2604</BaseCalculo><Aliquota>2.17</Aliquota><ValorLiquidoNfse>2604</ValorLiquidoNfse>' +
+        '<ValorIssRetido>0</ValorIssRetido></Valores><ItemListaServico>408</ItemListaServico>' +
+        '<CodigoTributacaoMunicipio>865000401</CodigoTributacaoMunicipio>' +
+        '<MunicipioPrestacaoServico>2304400</MunicipioPrestacaoServico></Servico>' +
+        '<PrestadorServico><IdentificacaoPrestador><Cnpj>50469491000192</Cnpj></IdentificacaoPrestador>' +
+        '<RazaoSocial>ESP FISIOTERAPIA E SAUDE LTDA</RazaoSocial></PrestadorServico>' +
+        '<TomadorServico><IdentificacaoTomador><CpfCnpj><Cpf>00788079301</Cpf></CpfCnpj></IdentificacaoTomador>' +
+        '<RazaoSocial>FRANCISCO TARCÍZIO CAVALCANTE</RazaoSocial>' +
+        '<Endereco><Cidade>2303709</Cidade><Estado>CE</Estado></Endereco></TomadorServico>' +
+        '<OrgaoGerador><CodigoMunicipio>2304400</CodigoMunicipio><Uf>CE</Uf></OrgaoGerador>' +
+        '</Nfse></NFSE>';
+
+      var casos = [
+        {
+          nome: 'Layout novo — processada',
+          xml: novaProcessada,
+          esperado: {
+            numero: '3635', dataIso: '2026-10-14', status: 'processada',
+            tomador: 'JAGUAR COMERCIO DE TINTAS LTDA', cpfCnpj: '07221472000466',
+            atividade: '812220001', valorServico: 650, valorTotal: 578.5, aliquota: 2.18,
+            issRetido: false, inss: 71.5, municipio: 'Fortaleza', municipioUf: 'CE'
+          }
+        },
+        {
+          nome: 'Layout novo — cancelada (mesmo com SituacaoAdn processado)',
+          xml: cancelada,
+          esperado: { numero: '3633', status: 'cancelada' }
+        },
+        {
+          nome: 'Layout novo — em processamento',
+          xml: emProcessamento,
+          esperado: { numero: '3637', status: 'processamento' }
+        },
+        {
+          nome: 'Layout antigo — sem SituacaoAdn',
+          xml: layoutAntigo,
+          esperado: {
+            numero: '42', dataIso: '2024-07-25', status: 'desconhecida',
+            tomador: 'FRANCISCO TARCÍZIO CAVALCANTE', cpfCnpj: '00788079301',
+            atividade: '865000401', valorServico: 2604, valorTotal: 2604,
+            aliquota: 2.17, issRetido: false, inss: 0, municipio: 'Fortaleza'
+          }
+        }
+      ];
+
+      var saida = document.getElementById('saida');
+      var total = 0, falhas = 0;
+
+      casos.forEach(function (caso) {
+        var nota = NFSe.parseXml(caso.xml, 'teste.xml');
+        var problemas = [];
+        total++;
+
+        if (nota.erro) {
+          problemas.push('erro de leitura: ' + nota.erro);
+        } else {
+          Object.keys(caso.esperado).forEach(function (campo) {
+            if (nota[campo] !== caso.esperado[campo]) {
+              problemas.push(campo + ': esperado ' + JSON.stringify(caso.esperado[campo]) + ', obtido ' + JSON.stringify(nota[campo]));
+            }
+          });
+        }
+
+        if (problemas.length) falhas++;
+
+        var bloco = document.createElement('div');
+        var titulo = document.createElement('h2');
+        titulo.className = problemas.length ? 'falha' : 'ok';
+        titulo.textContent = (problemas.length ? '✗ ' : '✓ ') + caso.nome;
+        bloco.appendChild(titulo);
+
+        if (problemas.length) {
+          var ul = document.createElement('ul');
+          problemas.forEach(function (p) {
+            var li = document.createElement('li');
+            li.textContent = p;
+            ul.appendChild(li);
+          });
+          bloco.appendChild(ul);
+        }
+        saida.appendChild(bloco);
+      });
+
+      var arquivoInvalido = NFSe.parseXml('<html></html>', 'x.xml');
+      total++;
+      if (!arquivoInvalido.erro) falhas++;
+
+      document.getElementById('resumo').textContent = falhas
+        ? falhas + ' de ' + total + ' verificação(ões) com falha'
+        : 'Todos os ' + total + ' casos passaram';
+      document.getElementById('resumo').className = falhas ? 'falha' : 'ok';
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Importador de NFS-e</title>
+  <meta name="description" content="Importe XMLs de notas fiscais de serviços por arquivo ou pasta e confira ISS, INSS, tomador, atividade e município. Tudo no navegador.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b1f3a'/><path d='M10 6h8l5 5v15H10z' fill='none' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/><path d='m13 20 2.5 2.5L22 16' fill='none' stroke='%2334d399' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#topo">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32">
+            <path d="M10 5h9l5 5v17H10z"/>
+            <path d="M19 5v5h5"/>
+            <path class="check" d="m13 20 3 3 5-6"/>
+          </svg>
+        </span>
+        <span class="brand-text">Importador<strong>NFS-e</strong></span>
+      </a>
+      <nav class="nav" aria-label="Navegação principal">
+        <a href="#importar">Importar</a>
+        <a href="#notas">Notas</a>
+      </nav>
+      <span class="badge-ano">GINFES · Fortaleza</span>
+    </div>
+  </header>
+
+  <main id="topo">
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <p class="eyebrow">Notas fiscais de serviços · XML</p>
+        <h1>Suas NFS-e importadas e <span>conferidas em uma só listagem</span></h1>
+        <p class="hero-sub">Importe por arquivo ou pasta e veja data de emissão, tomador, atividade, valores, ISS, INSS e município. Filtre, pagine e exporte para o Excel — sem instalar nada e sem enviar os XMLs para nenhum servidor.</p>
+        <div class="hero-stats">
+          <div><strong>15–100</strong><span>notas por página</span></div>
+          <div><strong>3</strong><span>situações reconhecidas</span></div>
+          <div><strong>100%</strong><span>processado no navegador</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap panel painel-importacao" id="importar">
+      <div id="dropzone" class="dropzone">
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        </span>
+        <span class="drop-title">Arraste os XMLs ou uma pasta aqui</span>
+        <span class="drop-sub">ou selecione pelos botões — subpastas também são lidas e arquivos que não são NFS-e ficam na lista de ignorados</span>
+        <div class="botoes">
+          <button type="button" class="btn btn-primary" id="btnArquivos">Importar arquivos</button>
+          <button type="button" class="btn btn-soft" id="btnPasta">Importar pasta</button>
+        </div>
+        <input type="file" id="inputArquivos" accept=".xml,text/xml,application/xml" multiple hidden>
+        <input type="file" id="inputPasta" webkitdirectory multiple hidden>
+        <p class="nota">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+          Os arquivos são lidos apenas no seu navegador. Nada é enviado nem armazenado.
+        </p>
+      </div>
+      <p id="mensagem" class="mensagem" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="wrap resumo" aria-label="Resumo das notas">
+      <div class="card metrica"><span>Notas</span><strong id="cardNotas">0</strong><small id="cardNotasDetalhe">de 0 importadas</small></div>
+      <div class="card metrica"><span>Valor do serviço</span><strong id="cardServico">R$ 0,00</strong><small>notas não canceladas</small></div>
+      <div class="card metrica azul"><span>Total ISS</span><strong id="cardIss">R$ 0,00</strong><small>valor calculado nas notas</small></div>
+      <div class="card metrica"><span>ISS retido</span><strong id="cardIssRetido">R$ 0,00</strong><small>somente notas com retenção</small></div>
+      <div class="card metrica"><span>Serviço com INSS retido</span><strong id="cardServicoInss">R$ 0,00</strong><small>notas com retenção de INSS</small></div>
+      <div class="card metrica verde"><span>INSS retido</span><strong id="cardInss">R$ 0,00</strong><small>valor retido nas notas</small></div>
+      <div class="card metrica alerta"><span>Canceladas</span><strong id="cardCanceladas">0</strong><small>não entram nos totais</small></div>
+    </section>
+
+    <section class="wrap panel painel-tabela" id="notas">
+      <div class="tabela-head">
+        <div>
+          <p class="eyebrow azul">Listagem</p>
+          <h2>Notas importadas</h2>
+        </div>
+        <p class="painel-sub">Os totais do rodapé excluem notas canceladas e acompanham os filtros.</p>
+      </div>
+
+      <div class="filtros">
+        <div class="campo busca">
+          <label for="busca">Buscar</label>
+          <input type="search" id="busca" placeholder="Tomador, número, CNPJ, atividade...">
+        </div>
+        <div class="campo">
+          <label for="filtroStatus">Situação</label>
+          <select id="filtroStatus">
+            <option value="">Todas</option>
+            <option value="processada">Processada</option>
+            <option value="processamento">Em processamento</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="desconhecida">Não informado</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="dataDe">Emissão de</label>
+          <input type="date" id="dataDe">
+        </div>
+        <div class="campo">
+          <label for="dataAte">até</label>
+          <input type="date" id="dataAte">
+        </div>
+        <div class="acoes">
+          <button type="button" id="btnCsv" class="btn btn-csv">Exportar CSV</button>
+          <button type="button" id="btnImprimir" class="btn btn-soft">Imprimir</button>
+          <button type="button" id="btnLimpar" class="btn btn-danger">Limpar</button>
+        </div>
+      </div>
+
+      <div class="tabela-wrap">
+        <table id="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Emissão</th>
+              <th scope="col">Nº NFS-e</th>
+              <th scope="col">Tomador do serviço</th>
+              <th scope="col">Atividade</th>
+              <th scope="col" class="num">Serviço (R$)</th>
+              <th scope="col" class="num">Total (R$)</th>
+              <th scope="col" class="num">Alíquota</th>
+              <th scope="col">ISS retido</th>
+              <th scope="col" class="num">Valor ISS</th>
+              <th scope="col" class="num">INSS retido</th>
+              <th scope="col">Município favorecido</th>
+              <th scope="col">Situação</th>
+              <th scope="col"><span class="oculto">Remover</span></th>
+            </tr>
+          </thead>
+          <tbody id="corpo"></tbody>
+          <tfoot id="rodape"></tfoot>
+        </table>
+      </div>
+
+      <p id="vazio" class="vazio">Nenhuma nota importada ainda. Selecione os XMLs ou uma pasta para começar.</p>
+
+      <div class="paginacao" id="paginacao" hidden>
+        <p class="pag-info" id="pagInfo"></p>
+        <div class="pag-controles">
+          <label class="pag-tamanho" for="porPagina">Itens por página
+            <select id="porPagina">
+              <option value="15" selected>15</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+          <nav class="pag-paginas" id="pagPaginas" aria-label="Paginação das notas"></nav>
+        </div>
+      </div>
+    </section>
+
+    <details id="ignoradosBox" class="wrap ignorados" hidden>
+      <summary id="ignoradosResumo"></summary>
+      <ul id="ignoradosLista"></ul>
+    </details>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div>
+        <span class="brand-text small">Importador<strong>NFS-e</strong></span>
+        <p>Ferramenta de apoio para conferir notas fiscais de serviços. Lê o layout GINFES usado pela NFS-e de Fortaleza, com e sem o bloco <code>InfNfse</code>.</p>
+      </div>
+      <p class="footer-meta">NF-e de produto e outros padrões não são lidos.<br>Nenhum XML é enviado para servidores.</p>
+    </div>
+  </footer>
+
+  <script src="municipios.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
