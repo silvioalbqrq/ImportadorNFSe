@@ -88,8 +88,8 @@
     else if (/processad/i.test(situacao)) status = 'processada';
 
     var numeroNota = primeiro(filho(info, 'Numero'), caminho(info, 'IdentificacaoNfse', 'Numero'));
-    var dataEl = primeiro(filho(info, 'DataEmissao'), filho(nfse, 'DataEmissao'));
-    var dataIso = texto(dataEl).match(/\d{4}-\d{2}-\d{2}/) ? texto(dataEl).match(/\d{4}-\d{2}-\d{2}/)[0] : '';
+    var dataTexto = primeiro(filho(info, 'DataEmissao'), filho(nfse, 'DataEmissao'));
+    var dataIso = (dataTexto.match(/\d{4}-\d{2}-\d{2}/) || [''])[0];
     var codigoMunicipio = primeiro(
       filho(servico, 'CodigoMunicipio'),
       filho(servico, 'MunicipioPrestacaoServico'),
