@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var state = { notas: [], ignorados: [], duplicados: 0, seq: 0, pagina: 1, porPagina: 15 };
+  var state = { notas: [], ignorados: [], seq: 0, pagina: 1, porPagina: 15 };
   var RANK = { cancelada: 3, processada: 2, desconhecida: 1, processamento: 0 };
   var STATUS = {
     processada: { rotulo: 'Processada', classe: 'ok' },
@@ -54,7 +54,7 @@
     return { nome: '', uf: uf || '' };
   }
 
-  function parseXml(xml, arquivo) {
+  function lerDocumento(xml) {
     var doc;
     try {
       doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -65,10 +65,11 @@
 
     var raiz = doc.documentElement;
     if (!raiz || raiz.localName !== 'NFSE') return { erro: 'não é uma NFS-e (layout NFSE/GINFES)' };
+    return { raiz: raiz };
+  }
 
-    var nfse = filho(raiz, 'Nfse');
-    if (!nfse) return { erro: 'não é uma NFS-e (layout NFSE/GINFES)' };
-
+  function parseNfse(nfse, arquivo) {
+    var raiz = nfse.ownerDocument.documentElement;
     // No layout novo os dados ficam em InfNfse; no antigo, direto em Nfse.
     var info = filho(nfse, 'InfNfse') || nfse;
     var servico = filho(info, 'Servico');
@@ -105,11 +106,14 @@
     var municipioNota = municipio(codigoMunicipio, uf);
 
     var valorServico = numero(filho(valores, 'ValorServicos'));
-    var valorTotal = numero(filho(valores, 'ValorLiquidoNfse')) || valorServico;
+    var liquidoEl = filho(valores, 'ValorLiquidoNfse');
+    var valorTotal = liquidoEl ? numero(liquidoEl) : valorServico;
     var codigoIssRetido = texto(filho(valores, 'IssRetido'));
-    var valorIssRetido = numero(filho(valores, 'ValorIssRetido'));
+    var retidoEl = filho(valores, 'ValorIssRetido');
+    var valorIssRetido = retidoEl ? numero(retidoEl) : null;
     var issRetido = /^1$/.test(codigoIssRetido) || (!codigoIssRetido && valorIssRetido > 0);
-    var valorIss = numero(filho(valores, 'ValorIss')) || valorIssRetido;
+    var issEl = filho(valores, 'ValorIss');
+    var valorIss = issEl ? numero(issEl) : (valorIssRetido || 0);
 
     var chave = primeiro(filho(info, 'ChaveAcesso'), filho(nfse, 'ChaveAcesso'));
     var prestadorDoc = primeiro(caminho(prestadorEl, 'IdentificacaoPrestador', 'Cnpj'), caminho(prestadorEl, 'IdentificacaoPrestador', 'Cpf'));
@@ -118,7 +122,7 @@
 
     return {
       id: 'n' + (++state.seq),
-      chave: chave || [prestadorDoc, numeroNota, dataIso, texto(filho(tomadorEl, 'RazaoSocial'))].join('|'),
+      chave: chave || [prestadorDoc, numeroNota, dataIso].join('|'),
       arquivo: arquivo || '',
       numero: numeroNota,
       dataIso: dataIso,
@@ -142,6 +146,25 @@
       prestador: texto(filho(prestadorEl, 'RazaoSocial')),
       prestadorDoc: prestadorDoc
     };
+  }
+
+  function parseXmls(xml, arquivo) {
+    var lido = lerDocumento(xml);
+    if (lido.erro) return [lido];
+
+    // XMLs assinados podem trazer um Nfse-envelope; só vale o que tem dados.
+    var todos = lido.raiz.getElementsByTagNameNS('*', 'Nfse');
+    var nfses = [];
+    for (var i = 0; i < todos.length; i++) {
+      if (filho(todos[i], 'InfNfse') || filho(todos[i], 'Servico')) nfses.push(todos[i]);
+    }
+    if (!nfses.length) return [{ erro: 'não é uma NFS-e (layout NFSE/GINFES)' }];
+
+    return nfses.map(function (nfse) { return parseNfse(nfse, arquivo); });
+  }
+
+  function parseXml(xml, arquivo) {
+    return parseXmls(xml, arquivo)[0] || { erro: 'não é uma NFS-e (layout NFSE/GINFES)' };
   }
 
   // ---------- formatação ----------
@@ -186,6 +209,12 @@
 
   async function lerConteudo(arquivo) {
     var bytes = new Uint8Array(await arquivo.arrayBuffer());
+    if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+      return new TextDecoder('utf-16le').decode(bytes).replace(/^\uFEFF/, '');
+    }
+    if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
+      return new TextDecoder('utf-16be').decode(bytes).replace(/^\uFEFF/, '');
+    }
     try {
       return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
     } catch (e) {
@@ -194,53 +223,69 @@
     }
   }
 
+  // Devolve a versão que fica na lista, ou null quando a nota é nova.
+  function mesclar(notas, porChave, nota) {
+    var existente = porChave[nota.chave];
+    if (!existente) {
+      notas.push(nota);
+      porChave[nota.chave] = nota;
+      return null;
+    }
+    if (RANK[nota.status] > RANK[existente.status]) {
+      nota.id = existente.id;
+      notas[notas.indexOf(existente)] = nota;
+      porChave[nota.chave] = nota;
+      return nota;
+    }
+    return existente;
+  }
+
   async function importar(lista) {
     var arquivos = Array.prototype.slice.call(lista || []);
-    var xmls = arquivos.filter(function (f) { return /\.xml$/i.test(f.name); });
+    var xmls = [];
+    arquivos.forEach(function (f) {
+      if (/\.xml$/i.test(f.name)) xmls.push(f);
+      else ignorar(f.webkitRelativePath || f.name, 'não é XML');
+    });
     if (!xmls.length) {
       mensagem(arquivos.length ? 'Nenhum arquivo XML encontrado na seleção.' : 'Selecione ao menos um XML.', true);
+      render();
       return;
     }
-
-    mensagem('Lendo ' + xmls.length + ' arquivo(s)...');
-
-    var lidos = await Promise.all(xmls.map(function (f) {
-      return lerConteudo(f).then(function (conteudo) {
-        return { arquivo: f.webkitRelativePath || f.name, conteudo: conteudo };
-      }).catch(function () {
-        return { arquivo: f.webkitRelativePath || f.name, erro: 'não foi possível ler o arquivo' };
-      });
-    }));
 
     var porChave = {};
     state.notas.forEach(function (n) { porChave[n.chave] = n; });
 
     var novas = 0, duplicadas = 0, falhas = 0;
+    var LOTE = 50;
 
-    lidos.forEach(function (lido) {
-      if (lido.erro) { ignorar(lido.arquivo, lido.erro); falhas++; return; }
+    for (var i = 0; i < xmls.length; i += LOTE) {
+      var lote = xmls.slice(i, i + LOTE);
+      mensagem('Lendo ' + Math.min(i + LOTE, xmls.length) + ' de ' + xmls.length + ' arquivo(s)...');
 
-      var nota = parseXml(lido.conteudo, lido.arquivo);
-      if (nota.erro) { ignorar(lido.arquivo, nota.erro); falhas++; return; }
+      var lidos = await Promise.all(lote.map(function (f) {
+        return lerConteudo(f).then(function (conteudo) {
+          return { arquivo: f.webkitRelativePath || f.name, conteudo: conteudo };
+        }).catch(function () {
+          return { arquivo: f.webkitRelativePath || f.name, erro: 'não foi possível ler o arquivo' };
+        });
+      }));
 
-      var existente = porChave[nota.chave];
-      if (!existente) {
-        state.notas.push(nota);
-        porChave[nota.chave] = nota;
-        novas++;
-        return;
-      }
+      lidos.forEach(function (lido) {
+        if (lido.erro) { ignorar(lido.arquivo, lido.erro); falhas++; return; }
 
-      duplicadas++;
-      ignorar(lido.arquivo, 'nota duplicada (versão mantida: ' + STATUS[existente.status].rotulo + ')');
-      if (RANK[nota.status] > RANK[existente.status]) {
-        nota.id = existente.id;
-        state.notas[state.notas.indexOf(existente)] = nota;
-        porChave[nota.chave] = nota;
-      }
-    });
+        parseXmls(lido.conteudo, lido.arquivo).forEach(function (nota) {
+          if (nota.erro) { ignorar(lido.arquivo, nota.erro); falhas++; return; }
 
-    state.duplicados += duplicadas;
+          var mantida = mesclar(state.notas, porChave, nota);
+          if (!mantida) { novas++; return; }
+
+          duplicadas++;
+          ignorar(lido.arquivo, 'nota duplicada (versão mantida: ' + STATUS[mantida.status].rotulo + ')');
+        });
+      });
+    }
+
     state.notas.sort(function (a, b) {
       return a.dataIso.localeCompare(b.dataIso) || a.numero.localeCompare(b.numero, 'pt-BR', { numeric: true });
     });
@@ -299,11 +344,10 @@
 
   // ---------- renderização ----------
 
-  function celula(conteudo, classe, titulo) {
+  function celula(conteudo, classe) {
     var td = document.createElement('td');
     td.textContent = conteudo;
     if (classe) td.className = classe;
-    if (titulo) td.title = titulo;
     return td;
   }
 
@@ -482,7 +526,7 @@
     document.getElementById('cardIss').textContent = formatarMoeda(somar(validas, 'valorIss'));
     document.getElementById('cardIssRetido').textContent = formatarMoeda(
       validas.reduce(function (total, n) {
-        return total + (n.issRetido ? (n.valorIssRetido || n.valorIss) : 0);
+        return total + (n.issRetido ? (n.valorIssRetido == null ? n.valorIss : n.valorIssRetido) : 0);
       }, 0)
     );
     document.getElementById('cardInss').textContent = formatarMoeda(somar(validas, 'inss'));
@@ -495,10 +539,11 @@
     if (state.ignorados.length) {
       box.hidden = false;
       document.getElementById('ignoradosResumo').textContent =
-        state.ignorados.length + ' arquivo(s)/registro(s) ignorado(s)';
+        state.ignorados.length + ' arquivo(s)/registro(s) ignorado(s)' +
+        (state.ignorados.length > 100 ? ' (mostrando os últimos 100)' : '');
       var lista = document.getElementById('ignoradosLista');
       lista.textContent = '';
-      state.ignorados.slice().reverse().forEach(function (item) {
+      state.ignorados.slice(-100).reverse().forEach(function (item) {
         var li = document.createElement('li');
         li.textContent = item.arquivo + ' — ' + item.motivo;
         lista.appendChild(li);
@@ -514,6 +559,7 @@
 
   function campoCsv(valor) {
     var s = String(valor == null ? '' : valor);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
@@ -550,7 +596,11 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'nfse-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+    var hoje = new Date();
+    var dataArquivo = hoje.getFullYear() + '-' +
+      String(hoje.getMonth() + 1).padStart(2, '0') + '-' +
+      String(hoje.getDate()).padStart(2, '0');
+    a.download = 'nfse-export-' + dataArquivo + '.csv';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -565,7 +615,6 @@
     if (!window.confirm('Remover todas as notas importadas?')) return;
     state.notas = [];
     state.ignorados = [];
-    state.duplicados = 0;
     state.pagina = 1;
     document.getElementById('busca').value = '';
     document.getElementById('filtroStatus').value = '';
@@ -688,7 +737,15 @@
     render();
   }
 
-  window.NFSe = { parseXml: parseXml, formatarData: formatarData, formatarMoeda: formatarMoeda };
+  window.NFSe = {
+    parseXml: parseXml,
+    parseXmls: parseXmls,
+    mesclar: mesclar,
+    campoCsv: campoCsv,
+    lerConteudo: lerConteudo,
+    formatarData: formatarData,
+    formatarMoeda: formatarMoeda
+  };
 
   if (document.getElementById('inputArquivos')) ligarInterface();
 })();

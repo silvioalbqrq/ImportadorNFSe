@@ -21,9 +21,9 @@
   <div id="saida"></div>
 
   <script src="municipios.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
   <script>
-    (function () {
+    (async function () {
       'use strict';
 
       var novaProcessada = '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -107,6 +107,25 @@
       var saida = document.getElementById('saida');
       var total = 0, falhas = 0;
 
+      function mostrarResultado(nome, problemas) {
+        var bloco = document.createElement('div');
+        var titulo = document.createElement('h2');
+        titulo.className = problemas.length ? 'falha' : 'ok';
+        titulo.textContent = (problemas.length ? '✗ ' : '✓ ') + nome;
+        bloco.appendChild(titulo);
+
+        if (problemas.length) {
+          var ul = document.createElement('ul');
+          problemas.forEach(function (p) {
+            var li = document.createElement('li');
+            li.textContent = p;
+            ul.appendChild(li);
+          });
+          bloco.appendChild(ul);
+        }
+        saida.appendChild(bloco);
+      }
+
       casos.forEach(function (caso) {
         var nota = NFSe.parseXml(caso.xml, 'teste.xml');
         var problemas = [];
@@ -123,24 +142,118 @@
         }
 
         if (problemas.length) falhas++;
-
-        var bloco = document.createElement('div');
-        var titulo = document.createElement('h2');
-        titulo.className = problemas.length ? 'falha' : 'ok';
-        titulo.textContent = (problemas.length ? '✗ ' : '✓ ') + caso.nome;
-        bloco.appendChild(titulo);
-
-        if (problemas.length) {
-          var ul = document.createElement('ul');
-          problemas.forEach(function (p) {
-            var li = document.createElement('li');
-            li.textContent = p;
-            ul.appendChild(li);
-          });
-          bloco.appendChild(ul);
-        }
-        saida.appendChild(bloco);
+        mostrarResultado(caso.nome, problemas);
       });
+
+      // XML antigo com envelope de assinatura e duas notas no mesmo arquivo.
+      var loteAssinado = '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<NFSE xmlns="http://www.ginfes.com.br/tipos" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#">' +
+        '<ns2:Nfse><Nfse><IdentificacaoNfse><Numero>57887</Numero></IdentificacaoNfse>' +
+        '<DataEmissao>2025-04-30T14:37:04-03:00</DataEmissao><Servico><Valores>' +
+        '<ValorServicos>100</ValorServicos><ValorLiquidoNfse>100</ValorLiquidoNfse>' +
+        '</Valores></Servico></Nfse></ns2:Nfse>' +
+        '<ns2:Nfse><Nfse><IdentificacaoNfse><Numero>5371</Numero></IdentificacaoNfse>' +
+        '<DataEmissao>2025-04-30T14:37:04-03:00</DataEmissao><Servico><Valores>' +
+        '<ValorServicos>200</ValorServicos><ValorLiquidoNfse>200</ValorLiquidoNfse>' +
+        '</Valores></Servico></Nfse></ns2:Nfse>' +
+        '</NFSE>';
+
+      var lote = NFSe.parseXmls(loteAssinado, 'lote.xml');
+      var problemasLote = [];
+      total++;
+      if (lote.length !== 2) {
+        problemasLote.push('esperado 2 notas, obtido ' + lote.length);
+      } else {
+        if (lote[0].numero !== '57887') problemasLote.push('primeira nota: ' + lote[0].numero);
+        if (lote[1].numero !== '5371') problemasLote.push('segunda nota: ' + lote[1].numero);
+        if (lote[0].dataIso !== '2025-04-30') problemasLote.push('data da primeira: ' + lote[0].dataIso);
+      }
+      if (problemasLote.length) falhas++;
+      mostrarResultado('XML antigo assinado com 2 notas', problemasLote);
+
+      // A chave do layout antigo não pode depender do tomador.
+      function notaAntiga(numero, tomador) {
+        return '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<NFSE xmlns="http://www.ginfes.com.br/tipos"><Nfse>' +
+          '<IdentificacaoNfse><Numero>' + numero + '</Numero></IdentificacaoNfse>' +
+          '<DataEmissao>2024-07-25T14:21:16-03:00</DataEmissao>' +
+          '<Servico><Valores><ValorServicos>100</ValorServicos>' +
+          '<ValorLiquidoNfse>100</ValorLiquidoNfse></Valores></Servico>' +
+          '<PrestadorServico><IdentificacaoPrestador><Cnpj>50469491000192</Cnpj>' +
+          '</IdentificacaoPrestador></PrestadorServico>' +
+          '<TomadorServico><RazaoSocial>' + tomador + '</RazaoSocial></TomadorServico>' +
+          '</Nfse></NFSE>';
+      }
+
+      var chaveA = NFSe.parseXml(notaAntiga('42', 'EMPRESA A'), 'a.xml').chave;
+      var chaveB = NFSe.parseXml(notaAntiga('42', 'EMPRESA B'), 'b.xml').chave;
+      var problemasChave = [];
+      total++;
+      if (chaveA !== chaveB) problemasChave.push('chaves diferentes: ' + chaveA + ' / ' + chaveB);
+      if (problemasChave.length) falhas++;
+      mostrarResultado('Chave de duplicidade sem o tomador', problemasChave);
+
+      // A versão de maior prioridade fica na lista.
+      function notaSimples(status) {
+        return { id: 'id-' + status, chave: 'k1', numero: '1', status: status };
+      }
+      var lista = [], mapa = {};
+      var processada = notaSimples('processada');
+      var nova = NFSe.mesclar(lista, mapa, processada);
+      var canceladaSimples = notaSimples('cancelada');
+      var venceu = NFSe.mesclar(lista, mapa, canceladaSimples);
+      var perdeu = NFSe.mesclar(lista, mapa, notaSimples('processada'));
+      var problemasMescla = [];
+      total++;
+      if (nova !== null) problemasMescla.push('nota nova deveria retornar null');
+      if (lista.length !== 1) problemasMescla.push('lista deveria ter 1 nota, tem ' + lista.length);
+      if (venceu !== canceladaSimples) problemasMescla.push('cancelada deveria substituir a processada');
+      if (canceladaSimples.id !== processada.id) problemasMescla.push('id da versão mantida mudou');
+      if (perdeu !== canceladaSimples) problemasMescla.push('processada não deveria substituir a cancelada');
+      if (lista[0] !== canceladaSimples) problemasMescla.push('lista deveria manter a cancelada');
+      if (problemasMescla.length) falhas++;
+      mostrarResultado('Prioridade entre versões duplicadas', problemasMescla);
+
+      // CSV não pode começar célula com fórmula.
+      var problemasCsv = [];
+      total++;
+      if (NFSe.campoCsv('=1+1') !== "'=1+1") problemasCsv.push('fórmula não foi neutralizada: ' + NFSe.campoCsv('=1+1'));
+      if (NFSe.campoCsv('a;b') !== '"a;b"') problemasCsv.push('ponto e vírgula não foi citado');
+      if (NFSe.campoCsv('a"b') !== '"a""b"') problemasCsv.push('aspas não foram duplicadas');
+      if (problemasCsv.length) falhas++;
+      mostrarResultado('CSV seguro contra fórmulas', problemasCsv);
+
+      // Zero é um valor válido, não campo ausente.
+      var zero = NFSe.parseXml('<?xml version="1.0" encoding="UTF-8"?>' +
+        '<NFSE xmlns="http://www.ginfes.com.br/tipos_v03.xsd"><Nfse><InfNfse>' +
+        '<Numero>1</Numero><DataEmissao>2026-01-01T10:00:00-03:00</DataEmissao>' +
+        '<Servico><Valores><ValorServicos>100</ValorServicos><ValorLiquidoNfse>0</ValorLiquidoNfse>' +
+        '<IssRetido>1</IssRetido><ValorIss>10</ValorIss><ValorIssRetido>0</ValorIssRetido>' +
+        '</Valores></Servico></InfNfse></Nfse></NFSE>', 'zero.xml');
+      var problemasZero = [];
+      total++;
+      if (zero.valorTotal !== 0) problemasZero.push('valorTotal: esperado 0, obtido ' + zero.valorTotal);
+      if (zero.valorIssRetido !== 0) problemasZero.push('valorIssRetido: esperado 0, obtido ' + zero.valorIssRetido);
+      if (zero.valorIss !== 10) problemasZero.push('valorIss: esperado 10, obtido ' + zero.valorIss);
+      if (problemasZero.length) falhas++;
+      mostrarResultado('Zero não é campo ausente', problemasZero);
+
+      // XML em UTF-16LE com BOM.
+      var textoUtf16 = '<?xml version="1.0" encoding="UTF-16"?><NFSE><Nfse><InfNfse><Numero>7</Numero></InfNfse></Nfse></NFSE>';
+      var bytesUtf16 = new Uint8Array(2 + textoUtf16.length * 2);
+      bytesUtf16[0] = 0xFF;
+      bytesUtf16[1] = 0xFE;
+      for (var bi = 0; bi < textoUtf16.length; bi++) {
+        var cc = textoUtf16.charCodeAt(bi);
+        bytesUtf16[2 + bi * 2] = cc & 0xFF;
+        bytesUtf16[3 + bi * 2] = cc >> 8;
+      }
+      var lidoUtf16 = await NFSe.lerConteudo(new File([bytesUtf16], 'utf16.xml'));
+      var problemasUtf16 = [];
+      total++;
+      if (lidoUtf16.indexOf('<NFSE') === -1) problemasUtf16.push('UTF-16 não foi decodificado');
+      if (problemasUtf16.length) falhas++;
+      mostrarResultado('XML em UTF-16', problemasUtf16);
 
       var arquivoInvalido = NFSe.parseXml('<html></html>', 'x.xml');
       total++;
