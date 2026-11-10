@@ -172,9 +172,9 @@ code { font-size: .92em; }
 
 .dropzone {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; text-align: center;
+  gap: 1px; text-align: center;
   border: 1.8px dashed #c3d2e5; border-radius: 14px;
-  background: #f9fbfe; padding: 14px 20px;
+  background: #f9fbfe; padding: 8px 20px;
   cursor: pointer; transition: border-color .18s, background .18s, transform .18s;
 }
 .dropzone:hover, .dropzone:focus-visible, .dropzone.ativo {
@@ -182,18 +182,18 @@ code { font-size: .92em; }
   outline: none;
 }
 .dropzone.ativo { transform: scale(.995); }
-.dropzone .botoes { justify-content: center; margin-top: 8px; }
-.dropzone .nota { margin-top: 4px; }
+.dropzone .botoes { justify-content: center; margin-top: 2px; }
+.dropzone .nota { margin-top: 1px; font-size: .7rem; }
 .drop-icon {
-  width: 46px; height: 46px; border-radius: 12px; background: #fff;
+  width: 36px; height: 36px; border-radius: 10px; background: #fff;
   border: 1px solid var(--line); display: grid; place-items: center; margin-bottom: 0;
 }
 .drop-icon svg {
-  width: 24px; height: 24px; fill: none; stroke: var(--blue);
+  width: 20px; height: 20px; fill: none; stroke: var(--blue);
   stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
-.drop-title { font-weight: 700; font-size: .95rem; color: var(--navy); }
-.drop-sub { font-size: .76rem; color: var(--muted); max-width: 760px; }
+.drop-title { font-weight: 700; font-size: .85rem; color: var(--navy); }
+.drop-sub { font-size: .72rem; color: var(--muted); max-width: 760px; }
 
 .mensagem {
   margin-top: 14px; font-size: .78rem; color: #067a54;
