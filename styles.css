@@ -225,6 +225,9 @@ code { font-size: .92em; }
 .metrica.azul strong { color: #1d4ed8; }
 .metrica.verde strong { color: #067a54; }
 .metrica.alerta strong { color: var(--danger); }
+.metrica.ouro strong { color: #b45309; }
+.metrica.ciano strong { color: #0891b2; }
+.metrica.laranja strong { color: #ea580c; }
 
 /* ---------- tabela ---------- */
 
