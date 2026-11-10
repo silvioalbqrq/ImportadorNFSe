@@ -83,8 +83,8 @@ code { font-size: .92em; }
     radial-gradient(700px 380px at 8% 4%, rgba(37, 99, 235, .38), transparent 66%),
     linear-gradient(135deg, #0a1c35 0%, #102c50 52%, #123a6b 100%);
   color: #fff;
-  padding: 62px 0 104px;
-  border-radius: 0 0 34px 34px;
+  padding: 24px 0 54px;
+  border-radius: 0 0 28px 28px;
 }
 .hero::after {
   content: '';
@@ -101,21 +101,21 @@ code { font-size: .92em; }
   font-size: .72rem; font-weight: 700; letter-spacing: .16em;
   text-transform: uppercase; color: var(--emerald-light);
 }
-.hero .eyebrow { margin-bottom: 14px; }
+.hero .eyebrow { margin-bottom: 6px; }
 .eyebrow.azul { color: var(--blue); margin-bottom: 6px; }
 .hero h1 {
-  font-size: clamp(2rem, 3.6vw, 3.05rem);
-  line-height: 1.1;
+  font-size: clamp(1.8rem, 2.2vw, 2.2rem);
+  line-height: 1.12;
   letter-spacing: -.035em;
   font-weight: 800;
-  max-width: 900px;
+  max-width: 1100px;
 }
 .hero h1 span { color: #a7f3d0; }
-.hero-sub { margin-top: 18px; max-width: 760px; font-size: 1.02rem; color: rgba(255, 255, 255, .78); }
-.hero-stats { display: flex; flex-wrap: wrap; gap: 16px 48px; margin-top: 34px; }
+.hero-sub { margin-top: 8px; max-width: 820px; font-size: .92rem; color: rgba(255, 255, 255, .78); }
+.hero-stats { display: flex; flex-wrap: wrap; gap: 12px 40px; margin-top: 12px; }
 .hero-stats div { display: flex; flex-direction: column; }
-.hero-stats strong { font-size: 1.55rem; font-weight: 800; letter-spacing: -.03em; }
-.hero-stats span { font-size: .76rem; color: rgba(255, 255, 255, .62); margin-top: 2px; }
+.hero-stats strong { font-size: 1.25rem; font-weight: 800; letter-spacing: -.03em; }
+.hero-stats span { font-size: .72rem; color: rgba(255, 255, 255, .62); margin-top: 2px; }
 
 /* ---------- painéis ---------- */
 
@@ -126,7 +126,7 @@ code { font-size: .92em; }
   box-shadow: var(--shadow);
   padding: 26px;
 }
-.painel-importacao { margin-top: -58px; position: relative; z-index: 2; }
+.painel-importacao { margin-top: -34px; position: relative; z-index: 2; }
 .tabela-head h2 {
   font-size: 1.28rem;
   letter-spacing: -.025em;
@@ -172,9 +172,9 @@ code { font-size: .92em; }
 
 .dropzone {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 5px; text-align: center;
+  gap: 2px; text-align: center;
   border: 1.8px dashed #c3d2e5; border-radius: 14px;
-  background: #f9fbfe; padding: 34px 22px;
+  background: #f9fbfe; padding: 14px 20px;
   cursor: pointer; transition: border-color .18s, background .18s, transform .18s;
 }
 .dropzone:hover, .dropzone:focus-visible, .dropzone.ativo {
@@ -182,18 +182,18 @@ code { font-size: .92em; }
   outline: none;
 }
 .dropzone.ativo { transform: scale(.995); }
-.dropzone .botoes { justify-content: center; margin-top: 12px; }
-.dropzone .nota { margin-top: 8px; }
+.dropzone .botoes { justify-content: center; margin-top: 8px; }
+.dropzone .nota { margin-top: 4px; }
 .drop-icon {
   width: 46px; height: 46px; border-radius: 12px; background: #fff;
-  border: 1px solid var(--line); display: grid; place-items: center; margin-bottom: 6px;
+  border: 1px solid var(--line); display: grid; place-items: center; margin-bottom: 0;
 }
 .drop-icon svg {
   width: 24px; height: 24px; fill: none; stroke: var(--blue);
   stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
 .drop-title { font-weight: 700; font-size: .95rem; color: var(--navy); }
-.drop-sub { font-size: .76rem; color: var(--muted); max-width: 380px; }
+.drop-sub { font-size: .76rem; color: var(--muted); max-width: 760px; }
 
 .mensagem {
   margin-top: 14px; font-size: .78rem; color: #067a54;
@@ -376,14 +376,14 @@ tfoot td.rotulo { text-align: right; color: var(--muted); font-weight: 700; }
 
 @media (max-width: 1000px) {
   .nav { display: none; }
-  .painel-importacao { margin-top: -46px; }
+  .painel-importacao { margin-top: -30px; }
 }
 
 @media (max-width: 760px) {
   .wrap { width: calc(100% - 28px); }
-  .hero { padding: 44px 0 84px; border-radius: 0 0 24px 24px; }
-  .hero-stats { gap: 18px 30px; }
-  .painel-importacao { margin-top: -42px; }
+  .hero { padding: 28px 0 64px; border-radius: 0 0 24px 24px; }
+  .hero-stats { gap: 14px 30px; }
+  .painel-importacao { margin-top: -30px; }
   .panel { padding: 20px; }
   .painel-tabela { padding: 0; }
   .resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
