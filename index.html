@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <header class="topbar">
@@ -28,7 +28,7 @@
         <a href="#importar">Importar</a>
         <a href="#notas">Notas</a>
       </nav>
-      <span class="badge-ano">GINFES · Fortaleza</span>
+      <span class="badge-ano">GINFES Fortaleza · NFS-e nacional</span>
     </div>
   </header>
 
@@ -40,7 +40,7 @@
         <p class="hero-sub">Importe por arquivo ou pasta e veja data de emissão, tomador, atividade, valores, ISS, INSS e município. Filtre, pagine e exporte para o Excel — sem instalar nada e sem enviar os XMLs para nenhum servidor.</p>
         <div class="hero-stats">
           <div><strong>15–100</strong><span>notas por página</span></div>
-          <div><strong>3</strong><span>situações reconhecidas</span></div>
+          <div><strong>5</strong><span>situações reconhecidas</span></div>
           <div><strong>100%</strong><span>processado no navegador</span></div>
         </div>
       </div>
@@ -69,12 +69,13 @@
 
     <section class="wrap resumo" aria-label="Resumo das notas">
       <div class="card metrica"><span>Notas</span><strong id="cardNotas">0</strong><small id="cardNotasDetalhe">de 0 importadas</small></div>
-      <div class="card metrica ouro"><span>Valor do serviço</span><strong id="cardServico">R$ 0,00</strong><small>notas não canceladas</small></div>
+      <div class="card metrica ouro"><span>Valor do serviço</span><strong id="cardServico">R$ 0,00</strong><small>notas válidas (sem canceladas/substituídas)</small></div>
       <div class="card metrica azul"><span>Total ISS</span><strong id="cardIss">R$ 0,00</strong><small>valor calculado nas notas</small></div>
       <div class="card metrica ciano"><span>ISS retido</span><strong id="cardIssRetido">R$ 0,00</strong><small>somente notas com retenção</small></div>
       <div class="card metrica laranja"><span>Serviço com INSS retido</span><strong id="cardServicoInss">R$ 0,00</strong><small>notas com retenção de INSS</small></div>
       <div class="card metrica verde"><span>INSS retido</span><strong id="cardInss">R$ 0,00</strong><small>valor retido nas notas</small></div>
       <div class="card metrica alerta"><span>Canceladas</span><strong id="cardCanceladas">0</strong><small>não entram nos totais</small></div>
+      <div class="card metrica roxo"><span>Substituídas</span><strong id="cardSubstituidas">0</strong><small>também não entram nos totais</small></div>
     </section>
 
     <section class="wrap panel painel-tabela" id="notas">
@@ -83,7 +84,7 @@
           <p class="eyebrow azul">Listagem</p>
           <h2>Notas importadas</h2>
         </div>
-        <p class="painel-sub">Os totais do rodapé excluem notas canceladas e acompanham os filtros.</p>
+        <p class="painel-sub">Os totais do rodapé excluem notas canceladas e substituídas e acompanham os filtros.</p>
       </div>
 
       <div class="filtros">
@@ -98,6 +99,7 @@
             <option value="processada">Processada</option>
             <option value="processamento">Em processamento</option>
             <option value="cancelada">Cancelada</option>
+            <option value="substituida">Substituída</option>
             <option value="desconhecida">Não informado</option>
           </select>
         </div>
@@ -168,13 +170,13 @@
     <div class="wrap footer-inner">
       <div>
         <span class="brand-text small">Importador<strong>NFS-e</strong></span>
-        <p>Ferramenta de apoio para conferir notas fiscais de serviços. Lê o layout GINFES usado pela NFS-e de Fortaleza, com e sem o bloco <code>InfNfse</code>.</p>
+        <p>Ferramenta de apoio para conferir notas fiscais de serviços. Lê o layout GINFES usado pela NFS-e de Fortaleza, com e sem o bloco <code>InfNfse</code>, e o layout nacional da NFS-e do Portal Contribuinte.</p>
       </div>
       <p class="footer-meta">NF-e de produto e outros padrões não são lidos.<br>Nenhum XML é enviado para servidores.</p>
     </div>
   </footer>
 
   <script src="municipios.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

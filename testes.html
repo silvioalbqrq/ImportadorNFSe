@@ -21,7 +21,7 @@
   <div id="saida"></div>
 
   <script src="municipios.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
   <script>
     (async function () {
       'use strict';
@@ -334,6 +334,59 @@
       if (chaveNacional !== chaveNacionalB) problemasChaveNacional.push('mesma nota gerou chaves diferentes');
       if (problemasChaveNacional.length) falhas++;
       mostrarResultado('Layout nacional — chave pelo Id', problemasChaveNacional);
+
+      // GINFES: NfseSubstituida aponta o número da nota substituída.
+      // A nota antiga costuma vir com bloco de cancelamento no XML.
+      var notaSubstituida = cancelada
+        .replace('CHAVE-3633', 'CHAVE-3587')
+        .replace('<Numero>3633</Numero>', '<Numero>3587</Numero>');
+      var notaSubstituta = novaProcessada
+        .replace('CHAVE-3635', 'CHAVE-3591')
+        .replace('<Numero>3635</Numero>', '<Numero>3591</Numero>')
+        .replace('<SituacaoAdn>', '<NfseSubstituida>3587</NfseSubstituida><SituacaoAdn>');
+      var antiga = NFSe.parseXml(notaSubstituida, 'antiga.xml');
+      var substituta = NFSe.parseXml(notaSubstituta, 'substituta.xml');
+      NFSe.marcarSubstituidas([antiga, substituta]);
+      var problemasSubstituida = [];
+      total++;
+      if (substituta.substituiNumero !== '3587') problemasSubstituida.push('substituiNumero: ' + substituta.substituiNumero);
+      if (antiga.status !== 'cancelada') problemasSubstituida.push('nota antiga deveria estar cancelada no XML: ' + antiga.status);
+      if (antiga.substituida !== true) problemasSubstituida.push('nota antiga deveria estar substituída');
+      if (substituta.substituida !== false) problemasSubstituida.push('nota substituta não pode estar substituída');
+      if (NFSe.situacao(antiga) !== 'substituida') problemasSubstituida.push('situação da antiga: ' + NFSe.situacao(antiga));
+      if (NFSe.situacao(substituta) !== 'processada') problemasSubstituida.push('situação da substituta: ' + NFSe.situacao(substituta));
+      if (problemasSubstituida.length) falhas++;
+      mostrarResultado('GINFES — nota substituída', problemasSubstituida);
+
+      // Layout nacional: chSubstda aponta a chave da nota substituída.
+      var nacionalAntiga = nacionalRetido;
+      var nacionalSubstituta = nacionalRetido
+        .replace('NFS23044002203602402000154000000000000526110179263187', 'NFS23044002203602402000154000000000000626118720582790')
+        .replace('<nNFSe>5</nNFSe>', '<nNFSe>6</nNFSe>')
+        .replace('<cStat>100</cStat>', '<cStat>101</cStat>')
+        .replace('<dhEmi>', '<subst><chSubstda>23044002203602402000154000000000000526110179263187</chSubstda></subst><dhEmi>');
+      var antigaNacional = NFSe.parseXml(nacionalAntiga, 'nacional-antiga.xml');
+      var substitutaNacional = NFSe.parseXml(nacionalSubstituta, 'nacional-substituta.xml');
+      NFSe.marcarSubstituidas([antigaNacional, substitutaNacional]);
+      var problemasSubstituidaNacional = [];
+      total++;
+      if (substitutaNacional.substituiChave !== '23044002203602402000154000000000000526110179263187') {
+        problemasSubstituidaNacional.push('substituiChave: ' + substitutaNacional.substituiChave);
+      }
+      if (antigaNacional.substituida !== true) problemasSubstituidaNacional.push('nota antiga deveria estar substituída');
+      if (substitutaNacional.substituida !== false) problemasSubstituidaNacional.push('nota substituta não pode estar substituída');
+      if (NFSe.situacao(antigaNacional) !== 'substituida') problemasSubstituidaNacional.push('situação da antiga: ' + NFSe.situacao(antigaNacional));
+      if (problemasSubstituidaNacional.length) falhas++;
+      mostrarResultado('Layout nacional — nota substituída', problemasSubstituidaNacional);
+
+      // O XML da nota antiga pode vir cancelado; a substituição tem prioridade.
+      total++;
+      if (NFSe.situacao(antiga) !== 'substituida') {
+        falhas++;
+        mostrarResultado('Substituída tem prioridade sobre cancelada', ['situação: ' + NFSe.situacao(antiga)]);
+      } else {
+        mostrarResultado('Substituída tem prioridade sobre cancelada', []);
+      }
 
       var arquivoInvalido = NFSe.parseXml('<html></html>', 'x.xml');
       total++;

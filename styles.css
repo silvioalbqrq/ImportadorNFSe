@@ -207,7 +207,7 @@ code { font-size: .92em; }
 
 .resumo {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 8px;
   margin-top: 14px;
 }
@@ -228,6 +228,7 @@ code { font-size: .92em; }
 .metrica.ouro strong { color: #b45309; }
 .metrica.ciano strong { color: #0891b2; }
 .metrica.laranja strong { color: #ea580c; }
+.metrica.roxo strong { color: #6d28d9; }
 
 /* ---------- tabela ---------- */
 
@@ -276,6 +277,8 @@ thead th {
 tbody tr:hover { background: #f8fbff; }
 tbody tr.cancelada { background: #fffafa; }
 tbody tr.cancelada td { color: var(--muted); }
+tbody tr.substituida { background: #faf8ff; }
+tbody tr.substituida td { color: var(--muted); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .nome { max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
 #tabela th:nth-child(2) { white-space: nowrap; }
@@ -291,6 +294,7 @@ tbody tr.cancelada td { color: var(--muted); }
 .tag.warn { background: #fffaeb; color: #93370d; border: 1px solid #fedf89; }
 .tag.bad { background: var(--danger-soft); color: var(--danger); border: 1px solid #fecdca; }
 .tag.neutral { background: #eef3f9; color: var(--muted); }
+.tag.substituida { background: #f4f0ff; color: #5b21b6; border: 1px solid #ddd6fe; }
 
 .remover {
   width: 28px; height: 28px;
@@ -432,7 +436,7 @@ tfoot td.rotulo { text-align: right; color: var(--muted); font-weight: 700; }
   .tabela-head h2 { font-size: 13pt; }
 
   .resumo {
-    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 5px; margin: 0 0 10px;
   }
   .resumo .metrica { grid-column: auto !important; }

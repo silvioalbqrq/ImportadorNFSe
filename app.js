@@ -8,8 +8,16 @@
     processada: { rotulo: 'Processada', classe: 'ok' },
     processamento: { rotulo: 'Em processamento', classe: 'warn' },
     cancelada: { rotulo: 'Cancelada', classe: 'bad' },
+    substituida: { rotulo: 'Substituída', classe: 'substituida' },
     desconhecida: { rotulo: 'Não informado', classe: 'neutral' }
   };
+
+  // Situação exibida: substituída tem prioridade porque o XML da nota antiga
+  // costuma vir com cancelamento; a substituição é derivada das referências
+  // encontradas nas demais notas da lista.
+  function situacao(nota) {
+    return nota.substituida ? 'substituida' : nota.status;
+  }
 
   // ---------- leitura do XML ----------
 
@@ -143,6 +151,7 @@
       municipioCodigo: codigoMunicipio,
       status: status,
       situacaoXml: situacao,
+      substituiNumero: primeiro(filho(info, 'NfseSubstituida'), filho(nfse, 'NfseSubstituida')),
       prestador: texto(filho(prestadorEl, 'RazaoSocial')),
       prestadorDoc: prestadorDoc
     };
@@ -217,6 +226,7 @@
       municipioCodigo: codigoMunicipio,
       status: status,
       situacaoXml: cStat,
+      substituiChave: texto(caminho(dps, 'subst', 'chSubstda')),
       prestador: texto(filho(emit, 'xNome')),
       prestadorDoc: prestadorDoc
     };
@@ -247,6 +257,42 @@
 
   function parseXml(xml, arquivo) {
     return parseXmls(xml, arquivo)[0] || { erro: 'não é uma NFS-e (layout NFSE/GINFES)' };
+  }
+
+  function somenteDigitos(valor) {
+    return String(valor || '').replace(/\D/g, '');
+  }
+
+  // Marca como substituída a nota que outra nota da lista informa ter substituído.
+  // GINFES usa o número (NfseSubstituida); o layout nacional usa a chave (chSubstda).
+  function marcarSubstituidas(notas) {
+    var porNumero = {};
+    var porChave = {};
+
+    notas.forEach(function (n) {
+      n.substituida = false;
+      if (n.numero) porNumero[(n.prestadorDoc || '') + '|' + n.numero] = n;
+      var chave = somenteDigitos(n.chave);
+      if (chave) porChave[chave] = n;
+    });
+
+    notas.forEach(function (n) {
+      if (n.substituiNumero) {
+        var alvo = porNumero[(n.prestadorDoc || '') + '|' + n.substituiNumero];
+        if (!alvo) {
+          // Sem prestador identificado, aceita o número quando ele é único na lista.
+          var candidatos = notas.filter(function (m) { return m.numero === n.substituiNumero; });
+          if (candidatos.length === 1) alvo = candidatos[0];
+        }
+        if (alvo && alvo !== n) alvo.substituida = true;
+      }
+
+      var chaveSubstituida = somenteDigitos(n.substituiChave);
+      if (chaveSubstituida) {
+        var alvoChave = porChave[chaveSubstituida];
+        if (alvoChave && alvoChave !== n) alvoChave.substituida = true;
+      }
+    });
   }
 
   // ---------- formatação ----------
@@ -408,8 +454,10 @@
     var de = document.getElementById('dataDe').value;
     var ate = document.getElementById('dataAte').value;
 
+    marcarSubstituidas(state.notas);
+
     return state.notas.filter(function (n) {
-      if (status && n.status !== status) return false;
+      if (status && situacao(n) !== status) return false;
       if (de && (!n.dataIso || n.dataIso < de)) return false;
       if (ate && (!n.dataIso || n.dataIso > ate)) return false;
       if (termo) {
@@ -447,7 +495,8 @@
 
   function linha(nota) {
     var tr = document.createElement('tr');
-    if (nota.status === 'cancelada') tr.className = 'cancelada';
+    var sit = situacao(nota);
+    if (sit === 'cancelada' || sit === 'substituida') tr.className = sit;
 
     tr.appendChild(celula(formatarData(nota.dataIso)));
     tr.appendChild(celula(nota.numero || '—'));
@@ -474,8 +523,8 @@
 
     var tdStatus = document.createElement('td');
     var tag = document.createElement('span');
-    tag.className = 'tag ' + STATUS[nota.status].classe;
-    tag.textContent = STATUS[nota.status].rotulo;
+    tag.className = 'tag ' + STATUS[sit].classe;
+    tag.textContent = STATUS[sit].rotulo;
     tdStatus.appendChild(tag);
     tr.appendChild(tdStatus);
 
@@ -555,7 +604,10 @@
 
   function render() {
     var notas = filtradas();
-    var validas = notas.filter(function (n) { return n.status !== 'cancelada'; });
+    var validas = notas.filter(function (n) {
+      var s = situacao(n);
+      return s !== 'cancelada' && s !== 'substituida';
+    });
     var corpo = document.getElementById('corpo');
     var rodape = document.getElementById('rodape');
     var vazio = document.getElementById('vazio');
@@ -587,7 +639,7 @@
       var totalInss = somar(validas, 'inss');
 
       var tr = document.createElement('tr');
-      var rotulo = celula('Totais exibidos (sem canceladas)', 'rotulo');
+      var rotulo = celula('Totais exibidos (sem canceladas e substituídas)', 'rotulo');
       rotulo.colSpan = 4;
       tr.appendChild(rotulo);
       tr.appendChild(celula(formatarMoeda(totalServico), 'num'));
@@ -615,7 +667,8 @@
     document.getElementById('cardServicoInss').textContent = formatarMoeda(
       somar(validas.filter(function (n) { return n.inss > 0; }), 'valorServico')
     );
-    document.getElementById('cardCanceladas').textContent = notas.filter(function (n) { return n.status === 'cancelada'; }).length;
+    document.getElementById('cardCanceladas').textContent = notas.filter(function (n) { return situacao(n) === 'cancelada'; }).length;
+    document.getElementById('cardSubstituidas').textContent = notas.filter(function (n) { return situacao(n) === 'substituida'; }).length;
 
     var box = document.getElementById('ignoradosBox');
     if (state.ignorados.length) {
@@ -669,7 +722,7 @@
         n.atividade, n.item, decimal(n.valorServico), decimal(n.valorTotal),
         n.aliquota.toFixed(2).replace('.', ','), n.issRetido ? 'Sim' : 'Não',
         decimal(n.valorIss), decimal(n.inss), n.municipio, n.municipioCodigo, n.municipioUf,
-        STATUS[n.status].rotulo, n.prestador, formatarDocumento(n.prestadorDoc), n.arquivo
+        STATUS[situacao(n)].rotulo, n.prestador, formatarDocumento(n.prestadorDoc), n.arquivo
       ]);
     });
 
@@ -823,6 +876,8 @@
     parseXml: parseXml,
     parseXmls: parseXmls,
     mesclar: mesclar,
+    marcarSubstituidas: marcarSubstituidas,
+    situacao: situacao,
     campoCsv: campoCsv,
     lerConteudo: lerConteudo,
     formatarData: formatarData,

@@ -31,7 +31,7 @@ Subpastas são lidas. Arquivos que não são NFS-e aparecem em “arquivos ignor
 | Valor do ISS | `Servico/Valores/ValorIss` |
 | INSS retido | `Servico/Valores/ValorInss` |
 | Município favorecido | `Servico/CodigoMunicipio` / `OrgaoGerador/CodigoMunicipio`, com nome e UF da tabela do IBGE |
-| Situação | `SituacaoAdn` e bloco `Cancelamento` |
+| Situação | `SituacaoAdn`, bloco `Cancelamento` e `NfseSubstituida` |
 
 No layout nacional (`sped.fazenda.gov.br/nfse`), os campos vêm de `NFSe/infNFSe` e da `DPS/infDPS`: número em `nNFSe`, data em `dhEmi`, tomador em `toma`, valores em `valores/vServPrest/vServ` e `valores/vLiq`, ISS em `valores/vISSQN` e retenção em `trib/tribMun/tpRetISSQN`. A situação usa `cStat`.
 
@@ -40,9 +40,10 @@ No layout nacional (`sped.fazenda.gov.br/nfse`), os campos vêm de `NFSe/infNFSe
 - **Cancelada**: existe `Cancelamento/Confirmacao/InfConfirmacaoCancelamento` com `Sucesso=true`.
 - **Em processamento**: `SituacaoAdn` = `Em Processamento`.
 - **Processada**: `SituacaoAdn` = `Processado com Sucesso`.
+- **Substituída**: outra nota da lista informa tê-la substituído — `NfseSubstituida` (número) no GINFES ou `subst/chSubstda` (chave) no layout nacional. A substituição tem prioridade sobre o cancelamento, pois o XML da nota antiga costuma vir com bloco de cancelamento.
 - **Não informado**: XML antigo sem `SituacaoAdn` e sem cancelamento.
 
-Notas canceladas não entram nos totais. Os cards e o rodapé refletem os filtros aplicados.
+Notas canceladas e substituídas não entram nos totais. Os cards e o rodapé refletem os filtros aplicados.
 
 ## Duplicidades
 
@@ -58,7 +59,7 @@ NF-e de produto e outros padrões de NFS-e não são lidos; os arquivos são lis
 
 ## Testes
 
-Abra `testes.html` no navegador. Ele roda casos dos três layouts, cancelamento, processamento, duplicidade, CSV e arquivo inválido, e mostra “Todos os casos passaram” quando está tudo certo.
+Abra `testes.html` no navegador. Ele roda casos dos três layouts, cancelamento, processamento, substituição, duplicidade, CSV e arquivo inválido, e mostra “Todos os casos passaram” quando está tudo certo.
 
 ## Publicar no GitHub
 
